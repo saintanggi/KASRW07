@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Settings, Search, Filter, Download, Eye, Calendar } from 'lucide-react';
-import { auditLogs } from '../data/mockData';
+import { Settings, Search, Filter, Download, Eye, Calendar, Database, Loader2, RefreshCw } from 'lucide-react';
+import { useAuditLogs } from '../hooks/useSupabaseData';
 
 const Audit: React.FC = () => {
+  const { data: auditLogs, loading, error, refresh } = useAuditLogs();
   const [searchTerm, setSearchTerm] = useState('');
+  const [actionFilter, setActionFilter] = useState('semua');
 
   const actionColors: Record<string, string> = {
+    'INSERT': 'bg-green-100 text-green-700',
     'CREATE': 'bg-green-100 text-green-700',
     'UPDATE': 'bg-blue-100 text-blue-700',
     'DELETE': 'bg-red-100 text-red-700',
@@ -14,11 +17,25 @@ const Audit: React.FC = () => {
     'VIEW': 'bg-gray-100 text-gray-700',
   };
 
-  const filteredLogs = auditLogs.filter((log) =>
-    log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.detail.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLogs = auditLogs.filter((log: any) => {
+    const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.detail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.table.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesAction = actionFilter === 'semua' || log.action === actionFilter;
+    return matchesSearch && matchesAction;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-gray-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Memuat audit trail...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -35,6 +52,17 @@ const Audit: React.FC = () => {
         </div>
         <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
           <Download className="w-4 h-4" /> Ekspor Log
+        </button>
+      </div>
+
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+        <Database className="w-5 h-5 text-emerald-600" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-emerald-800">✅ Audit trail dari Supabase</p>
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        </div>
+        <button onClick={refresh} className="text-xs px-3 py-1.5 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100 flex items-center gap-1">
+          <RefreshCw className="w-3 h-3" /> Refresh
         </button>
       </div>
 
@@ -73,21 +101,22 @@ const Audit: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-400" />
-            <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500">
-              <option>Semua Aksi</option>
-              <option>CREATE</option>
-              <option>UPDATE</option>
-              <option>DELETE</option>
-              <option>APPROVE</option>
-              <option>REJECT</option>
-              <option>VIEW</option>
+            <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500">
+              <option value="semua">Semua Aksi</option>
+              <option value="INSERT">INSERT</option>
+              <option value="UPDATE">UPDATE</option>
+              <option value="DELETE">DELETE</option>
+              <option value="CREATE">CREATE</option>
+              <option value="APPROVE">APPROVE</option>
+              <option value="REJECT">REJECT</option>
+              <option value="VIEW">VIEW</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-400" />
-            <input type="date" defaultValue="2024-12-01" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" />
+            <input type="date" defaultValue="2026-09-01" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" />
             <span className="text-gray-400">s/d</span>
-            <input type="date" defaultValue="2024-12-06" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" />
+            <input type="date" defaultValue="2026-09-28" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" />
           </div>
         </div>
       </div>
@@ -114,13 +143,13 @@ const Audit: React.FC = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-gray-600">{log.user.split(' ').map(n => n[0]).join('').slice(0, 2)}</span>
+                        <span className="text-xs font-medium text-gray-600">{log.user.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</span>
                       </div>
                       <span className="text-sm font-medium text-gray-800">{log.user}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${actionColors[log.action]}`}>
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${actionColors[log.action] || 'bg-gray-100 text-gray-700'}`}>
                       {log.action}
                     </span>
                   </td>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClipboardList, Package, Plus, Download, Edit, Trash2, Database, Loader2 } from 'lucide-react';
+import { ClipboardList, Plus, Download, Edit, Trash2, Database, Loader2, RefreshCw } from 'lucide-react';
 import { useAset } from '../hooks/useSupabaseData';
 
 const formatCurrency = (value: number) => {
@@ -7,8 +7,31 @@ const formatCurrency = (value: number) => {
 };
 
 const Aset: React.FC = () => {
-  const { data: asetData, loading } = useAset();
+  const { data: asetData, loading, saving, error, refresh, create, remove } = useAset();
   const totalNilai = asetData.reduce((sum: number, a: any) => sum + a.nilai, 0);
+
+  const handleAdd = async () => {
+    const nama = window.prompt('Nama aset:');
+    if (!nama) return;
+    const kategori = window.prompt('Kategori aset:', 'Perlengkapan') || 'Perlengkapan';
+    const nilaiText = window.prompt('Nilai perolehan:', '0') || '0';
+    const lokasi = window.prompt('Lokasi:', 'Sekretariat RW 07') || 'Sekretariat RW 07';
+    try {
+      await create({ nama, kategori, nilai: Number(nilaiText), lokasi, kondisi: 'Baik' });
+      alert('Aset berhasil ditambahkan.');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menambah aset.');
+    }
+  };
+
+  const handleDelete = async (aset: any) => {
+    if (!window.confirm(`Hapus aset ${aset.nama}?`)) return;
+    try {
+      await remove(aset.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menghapus aset.');
+    }
+  };
 
   if (loading) {
     return (
@@ -26,7 +49,13 @@ const Aset: React.FC = () => {
       {/* Connection Status */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
         <Database className="w-5 h-5 text-emerald-600" />
-        <p className="text-sm font-medium text-emerald-800">✅ Data aset dari Supabase</p>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-emerald-800">✅ Data aset dari Supabase</p>
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        </div>
+        <button onClick={refresh} className="text-xs px-3 py-1.5 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100 flex items-center gap-1">
+          <RefreshCw className="w-3 h-3" /> Refresh
+        </button>
       </div>
 
       {/* Header */}
@@ -37,15 +66,15 @@ const Aset: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Inventaris & Aset</h1>
-            <p className="text-gray-500 text-sm">Kelola aset dan inventaris RW 05</p>
+            <p className="text-gray-500 text-sm">Kelola aset dan inventaris RW 07</p>
           </div>
         </div>
         <div className="flex gap-2">
           <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
             <Download className="w-4 h-4" /> Ekspor
           </button>
-          <button className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Tambah Aset
+          <button onClick={handleAdd} disabled={saving} className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center gap-2 disabled:opacity-60">
+            <Plus className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Tambah Aset'}
           </button>
         </div>
       </div>
@@ -104,7 +133,7 @@ const Aset: React.FC = () => {
                       <button className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
+                      <button onClick={() => handleDelete(aset)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Hapus aset">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>

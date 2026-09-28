@@ -1,384 +1,867 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Mock data sebagai fallback
-const mockKpiData = {
-  saldoKasTunai: 15750000,
-  saldoRekeningBank: 48250000,
-  totalPenerimaanBulanIni: 12500000,
-  totalPengeluaranBulanIni: 8750000,
-};
+export type TransactionType = 'penerimaan' | 'pengeluaran';
 
-const mockMonthlyData = [
-  { bulan: 'Jan', pemasukan: 12000000, pengeluaran: 9500000 },
-  { bulan: 'Feb', pemasukan: 11000000, pengeluaran: 8000000 },
-  { bulan: 'Mar', pemasukan: 13500000, pengeluaran: 10200000 },
-  { bulan: 'Apr', pemasukan: 10500000, pengeluaran: 7800000 },
-  { bulan: 'Mei', pemasukan: 14000000, pengeluaran: 11000000 },
-  { bulan: 'Jun', pemasukan: 12500000, pengeluaran: 9000000 },
-  { bulan: 'Jul', pemasukan: 15000000, pengeluaran: 12500000 },
-  { bulan: 'Agu', pemasukan: 11500000, pengeluaran: 8500000 },
-  { bulan: 'Sep', pemasukan: 13000000, pengeluaran: 9800000 },
-  { bulan: 'Okt', pemasukan: 14500000, pengeluaran: 10500000 },
-  { bulan: 'Nov', pemasukan: 12000000, pengeluaran: 8200000 },
-  { bulan: 'Des', pemasukan: 12500000, pengeluaran: 8750000 },
+const MONTHS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const MONTHS_ID_LONG = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 
-const mockAnggaranData = [
-  { pos: 'Kebersihan', anggaran: 24000000, realisasi: 18500000 },
-  { pos: 'Keamanan', anggaran: 36000000, realisasi: 28000000 },
-  { pos: 'Sosial', anggaran: 12000000, realisasi: 8500000 },
-  { pos: 'Infrastruktur', anggaran: 48000000, realisasi: 32000000 },
-  { pos: 'Operasional', anggaran: 18000000, realisasi: 14200000 },
-  { pos: 'Kesehatan', anggaran: 6000000, realisasi: 3800000 },
-];
+export function toNumber(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
 
-const mockRecentTransactions = [
-  { id: 1, nomor: 'TRX-2024-001', tanggal: '2024-12-01', tipe: 'penerimaan', kategori: 'Iuran Warga', nominal: 2500000, sumber: 'RT 01', status: 'terverifikasi' },
-  { id: 2, nomor: 'TRX-2024-002', tanggal: '2024-12-01', tipe: 'pengeluaran', kategori: 'Kebersihan', nominal: 1500000, sumber: 'Gaji Petugas', status: 'terverifikasi' },
-  { id: 3, nomor: 'TRX-2024-003', tanggal: '2024-12-02', tipe: 'penerimaan', kategori: 'Donasi', nominal: 5000000, sumber: 'Bpk. Ahmad', status: 'terverifikasi' },
-  { id: 4, nomor: 'TRX-2024-004', tanggal: '2024-12-03', tipe: 'pengeluaran', kategori: 'Infrastruktur', nominal: 3500000, sumber: 'Perbaikan Jalan', status: 'menunggu' },
-  { id: 5, nomor: 'TRX-2024-005', tanggal: '2024-12-03', tipe: 'penerimaan', kategori: 'Iuran Warga', nominal: 1800000, sumber: 'RT 02', status: 'terverifikasi' },
-  { id: 6, nomor: 'TRX-2024-006', tanggal: '2024-12-04', tipe: 'pengeluaran', kategori: 'Keamanan', nominal: 2000000, sumber: 'Gaji Satpam', status: 'terverifikasi' },
-  { id: 7, nomor: 'TRX-2024-007', tanggal: '2024-12-04', tipe: 'penerimaan', kategori: 'Iuran Warga', nominal: 3200000, sumber: 'RT 03', status: 'menunggu' },
-];
+export function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
-const mockPendingApprovals = [
-  { id: 1, nomor: 'TRX-2024-004', pengaju: 'Budi Santoso', nominal: 3500000, kategori: 'Infrastruktur', tanggal: '2024-12-03', deskripsi: 'Perbaikan jalan RT 02' },
-  { id: 2, nomor: 'TRX-2024-007', pengaju: 'Siti Aminah', nominal: 3200000, kategori: 'Iuran Warga', tanggal: '2024-12-04', deskripsi: 'Iuran Desember RT 03' },
-  { id: 3, nomor: 'TRX-2024-011', pengaju: 'Ahmad Fauzi', nominal: 5000000, kategori: 'Keamanan', tanggal: '2024-12-06', deskripsi: 'Pembelian CCTV' },
-];
+export function currentYear(): number {
+  return new Date().getFullYear();
+}
 
-const mockNotifications = [
-  { id: 1, type: 'warning', message: '3 pengajuan menunggu persetujuan', time: '5 menit lalu' },
-  { id: 2, type: 'info', message: 'Iuran RT 02 bulan Desember telah diterima', time: '1 jam lalu' },
-  { id: 3, type: 'success', message: 'Laporan bulanan November berhasil digenerate', time: '2 jam lalu' },
-  { id: 4, type: 'error', message: 'Selisih kas kecil Rp 50.000', time: '3 jam lalu' },
-];
+export function currentPeriod(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
 
-// Hook untuk Dashboard
+export function formatPeriodLabel(period: string): string {
+  const [year, month] = period.split('-');
+  const idx = Number(month) - 1;
+  if (!year || idx < 0 || idx > 11) return period;
+  return `${MONTHS_ID_LONG[idx]} ${year}`;
+}
+
+function monthStart(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function nextMonthStart(date = new Date()): string {
+  const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function getYearFromDate(value?: string | null): number | null {
+  if (!value) return null;
+  const year = Number(value.slice(0, 4));
+  return Number.isFinite(year) ? year : null;
+}
+
+function isDateInCurrentMonth(value?: string | null): boolean {
+  if (!value) return false;
+  return value >= monthStart() && value < nextMonthStart();
+}
+
+export function makeTransactionNumber(type: TransactionType): string {
+  const prefix = type === 'penerimaan' ? 'IN' : 'OUT';
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const suffix = String(now.getTime()).slice(-6);
+  return `${prefix}-${y}${m}${d}-${suffix}`;
+}
+
+function normalizeError(error: unknown): string {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message || 'Terjadi kesalahan');
+  }
+  return 'Terjadi kesalahan';
+}
+
 export function useDashboardData() {
   const [data, setData] = useState({
-    kpi: mockKpiData,
-    monthlyData: mockMonthlyData,
-    anggaranData: mockAnggaranData,
-    recentTransactions: mockRecentTransactions,
-    pendingApprovals: mockPendingApprovals,
-    notifications: mockNotifications,
+    kpi: {
+      saldoKasTunai: 0,
+      saldoRekeningBank: 0,
+      totalPenerimaanBulanIni: 0,
+      totalPengeluaranBulanIni: 0,
+    },
+    monthlyData: [] as any[],
+    anggaranData: [] as any[],
+    recentTransactions: [] as any[],
+    pendingApprovals: [] as any[],
+    notifications: [] as any[],
+    periodeLabel: formatPeriodLabel(currentPeriod()),
+    tahunAnggaran: currentYear(),
     loading: true,
     error: null as string | null,
   });
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        // Fetch rekening
-        const { data: rekeningData, error: rekeningError } = await supabase
-          .from('rekening')
-          .select('saldo_saat_ini, jenis');
+  const refresh = useCallback(async () => {
+    setData((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const [rekeningRes, penerimaanRes, pengeluaranRes, anggaranRes, iuranRes, monthlyViewRes] = await Promise.all([
+        supabase.from('rekening').select('*').order('id'),
+        supabase.from('penerimaan').select('*, kategori_transaksi(nama_kategori)').order('tanggal', { ascending: false }),
+        supabase.from('pengeluaran').select('*, kategori_transaksi(nama_kategori)').order('tanggal_pengajuan', { ascending: false }),
+        supabase.from('anggaran').select('*, kategori_transaksi(nama_kategori)').order('tahun', { ascending: false }),
+        supabase.from('iuran').select('id,status,periode'),
+        supabase.from('v_dashboard_monthly').select('*').order('periode'),
+      ]);
 
-        let saldoKas = mockKpiData.saldoKasTunai;
-        let saldoBank = mockKpiData.saldoRekeningBank;
+      const rekeningRows = rekeningRes.data || [];
+      const penerimaanRows = penerimaanRes.data || [];
+      const pengeluaranRows = pengeluaranRes.data || [];
+      const anggaranRowsAll = anggaranRes.data || [];
+      const iuranRows = iuranRes.data || [];
 
-        if (!rekeningError && rekeningData && rekeningData.length > 0) {
-          saldoKas = rekeningData.filter(r => r.jenis === 'kas').reduce((sum, r) => sum + r.saldo_saat_ini, 0);
-          saldoBank = rekeningData.filter(r => r.jenis === 'bank').reduce((sum, r) => sum + r.saldo_saat_ini, 0);
-        }
+      const saldoKas = rekeningRows
+        .filter((row: any) => row.jenis === 'kas')
+        .reduce((sum: number, row: any) => sum + toNumber(row.saldo_saat_ini), 0);
+      const saldoBank = rekeningRows
+        .filter((row: any) => row.jenis === 'bank')
+        .reduce((sum: number, row: any) => sum + toNumber(row.saldo_saat_ini), 0);
 
-        // Fetch anggaran
-        const { data: anggaranData, error: anggaranError } = await supabase
-          .from('anggaran')
-          .select('*, kategori_transaksi(nama_kategori)')
-          .eq('tahun', 2024);
+      const totalPenerimaanBulanIni = penerimaanRows
+        .filter((row: any) => row.status === 'terverifikasi' && isDateInCurrentMonth(row.tanggal))
+        .reduce((sum: number, row: any) => sum + toNumber(row.nominal), 0);
 
-        let formattedAnggaran = mockAnggaranData;
-        if (!anggaranError && anggaranData && anggaranData.length > 0) {
-          formattedAnggaran = anggaranData.map(a => ({
-            pos: a.kategori_transaksi?.nama_kategori || 'Unknown',
-            anggaran: a.jumlah_anggaran,
-            realisasi: a.realisasi,
-          }));
-        }
+      const totalPengeluaranBulanIni = pengeluaranRows
+        .filter((row: any) => row.status === 'lunas' && isDateInCurrentMonth(row.tanggal_pembayaran || row.tanggal_pengajuan))
+        .reduce((sum: number, row: any) => sum + toNumber(row.nominal), 0);
 
-        // Fetch penerimaan
-        const { data: penerimaanData } = await supabase
-          .from('penerimaan')
-          .select('*, kategori_transaksi(nama_kategori)')
-          .order('tanggal', { ascending: false })
-          .limit(10);
-
-        // Fetch pengeluaran
-        const { data: pengeluaranData } = await supabase
-          .from('pengeluaran')
-          .select('*, kategori_transaksi(nama_kategori)')
-          .order('tanggal_pengajuan', { ascending: false })
-          .limit(10);
-
-        // Combine transactions
-        let transactions = mockRecentTransactions;
-        if ((penerimaanData && penerimaanData.length > 0) || (pengeluaranData && pengeluaranData.length > 0)) {
-          transactions = [
-            ...(penerimaanData?.map(p => ({
-              id: p.id,
-              nomor: p.nomor,
-              tanggal: p.tanggal,
-              tipe: 'penerimaan',
-              kategori: p.kategori_transaksi?.nama_kategori || 'Unknown',
-              nominal: p.nominal,
-              sumber: p.sumber,
-              status: p.status,
-            })) || []),
-            ...(pengeluaranData?.map(p => ({
-              id: p.id,
-              nomor: p.nomor,
-              tanggal: p.tanggal_pengajuan,
-              tipe: 'pengeluaran',
-              kategori: p.kategori_transaksi?.nama_kategori || 'Unknown',
-              nominal: p.nominal,
-              sumber: p.deskripsi,
-              status: p.status,
-            })) || []),
-          ].sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()).slice(0, 10);
-        }
-
-        // Fetch pending approvals
-        const { data: pendingData } = await supabase
-          .from('pengeluaran')
-          .select('*')
-          .eq('status', 'menunggu')
-          .order('tanggal_pengajuan', { ascending: false })
-          .limit(3);
-
-        let pending = mockPendingApprovals;
-        if (pendingData && pendingData.length > 0) {
-          pending = pendingData.map(p => ({
-            id: p.id,
-            nomor: p.nomor,
-            pengaju: 'User',
-            nominal: p.nominal,
-            kategori: 'Kategori',
-            tanggal: p.tanggal_pengajuan,
-            deskripsi: p.deskripsi,
-          }));
-        }
-
-        setData({
-          kpi: {
-            saldoKasTunai: saldoKas,
-            saldoRekeningBank: saldoBank,
-            totalPenerimaanBulanIni: mockKpiData.totalPenerimaanBulanIni,
-            totalPengeluaranBulanIni: mockKpiData.totalPengeluaranBulanIni,
-          },
-          monthlyData: mockMonthlyData,
-          anggaranData: formattedAnggaran,
-          recentTransactions: transactions,
-          pendingApprovals: pending,
-          notifications: mockNotifications,
-          loading: false,
-          error: null,
+      let monthlyData: any[] = [];
+      if (!monthlyViewRes.error && monthlyViewRes.data && monthlyViewRes.data.length > 0) {
+        monthlyData = monthlyViewRes.data.map((row: any) => ({
+          bulan: row.bulan || MONTHS_ID[Number(row.periode?.slice(5, 7)) - 1] || row.periode,
+          periode: row.periode,
+          pemasukan: toNumber(row.pemasukan),
+          pengeluaran: toNumber(row.pengeluaran),
+        }));
+      } else {
+        const now = new Date();
+        const months = Array.from({ length: 12 }, (_, index) => {
+          const d = new Date(now.getFullYear(), now.getMonth() - 11 + index, 1);
+          const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          return { date: d, period };
         });
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        setData(prev => ({ ...prev, loading: false, error: 'Gagal memuat data' }));
+        monthlyData = months.map(({ date, period }) => ({
+          bulan: MONTHS_ID[date.getMonth()],
+          periode: period,
+          pemasukan: penerimaanRows
+            .filter((row: any) => row.status === 'terverifikasi' && String(row.tanggal || '').startsWith(period))
+            .reduce((sum: number, row: any) => sum + toNumber(row.nominal), 0),
+          pengeluaran: pengeluaranRows
+            .filter((row: any) => row.status === 'lunas' && String(row.tanggal_pembayaran || row.tanggal_pengajuan || '').startsWith(period))
+            .reduce((sum: number, row: any) => sum + toNumber(row.nominal), 0),
+        }));
       }
-    }
 
-    fetchDashboardData();
+      const availableYears = Array.from(new Set(anggaranRowsAll.map((row: any) => Number(row.tahun)).filter(Boolean))).sort((a, b) => b - a);
+      const selectedYear = availableYears.includes(currentYear()) ? currentYear() : (availableYears[0] || currentYear());
+
+      const realisasiByCategory = new Map<number, number>();
+      pengeluaranRows
+        .filter((row: any) => row.status === 'lunas' && getYearFromDate(row.tanggal_pembayaran || row.tanggal_pengajuan) === selectedYear)
+        .forEach((row: any) => {
+          const categoryId = Number(row.kategori_id || 0);
+          realisasiByCategory.set(categoryId, (realisasiByCategory.get(categoryId) || 0) + toNumber(row.nominal));
+        });
+
+      const anggaranData = anggaranRowsAll
+        .filter((row: any) => Number(row.tahun) === selectedYear)
+        .map((row: any) => ({
+          id: row.id,
+          kategori_id: row.kategori_id,
+          pos: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+          anggaran: toNumber(row.jumlah_anggaran),
+          realisasi: realisasiByCategory.get(Number(row.kategori_id)) ?? toNumber(row.realisasi),
+        }));
+
+      const recentTransactions = [
+        ...penerimaanRows.map((row: any) => ({
+          key: `p-${row.id}`,
+          id: row.id,
+          nomor: row.nomor,
+          tanggal: row.tanggal,
+          tipe: 'penerimaan',
+          kategori: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+          nominal: toNumber(row.nominal),
+          sumber: row.sumber,
+          status: row.status,
+        })),
+        ...pengeluaranRows.map((row: any) => ({
+          key: `g-${row.id}`,
+          id: row.id,
+          nomor: row.nomor,
+          tanggal: row.tanggal_pembayaran || row.tanggal_pengajuan,
+          tipe: 'pengeluaran',
+          kategori: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+          nominal: toNumber(row.nominal),
+          sumber: row.deskripsi,
+          status: row.status,
+        })),
+      ]
+        .sort((a: any, b: any) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+        .slice(0, 10);
+
+      const pendingApprovals = pengeluaranRows
+        .filter((row: any) => row.status === 'menunggu')
+        .slice(0, 5)
+        .map((row: any) => ({
+          id: row.id,
+          nomor: row.nomor,
+          pengaju: 'Pengurus RW/RT',
+          nominal: toNumber(row.nominal),
+          kategori: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+          tanggal: row.tanggal_pengajuan,
+          deskripsi: row.deskripsi,
+        }));
+
+      const unpaidIuran = iuranRows.filter((row: any) => row.periode === currentPeriod() && row.status !== 'lunas').length;
+      const notifications = [
+        {
+          id: 1,
+          type: pendingApprovals.length > 0 ? 'warning' : 'success',
+          message: `${pendingApprovals.length} pengajuan pengeluaran menunggu persetujuan`,
+          time: 'real-time',
+        },
+        {
+          id: 2,
+          type: unpaidIuran > 0 ? 'info' : 'success',
+          message: `${unpaidIuran} iuran periode ${formatPeriodLabel(currentPeriod())} belum lunas`,
+          time: 'real-time',
+        },
+        {
+          id: 3,
+          type: 'success',
+          message: 'Data dashboard diambil dari Supabase',
+          time: 'baru saja',
+        },
+      ];
+
+      setData({
+        kpi: {
+          saldoKasTunai: saldoKas,
+          saldoRekeningBank: saldoBank,
+          totalPenerimaanBulanIni,
+          totalPengeluaranBulanIni,
+        },
+        monthlyData,
+        anggaranData,
+        recentTransactions,
+        pendingApprovals,
+        notifications,
+        periodeLabel: formatPeriodLabel(currentPeriod()),
+        tahunAnggaran: selectedYear,
+        loading: false,
+        error: penerimaanRes.error || pengeluaranRes.error || rekeningRes.error ? 'Sebagian data gagal dimuat dari Supabase.' : null,
+      });
+    } catch (error) {
+      setData((prev) => ({ ...prev, loading: false, error: normalizeError(error) }));
+    }
   }, []);
 
-  return data;
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return useMemo(() => ({ ...data, refresh }), [data, refresh]);
 }
 
-// Hook untuk Rekening
 export function useRekening() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      const { data: rekeningData, error } = await supabase
-        .from('rekening')
-        .select('*')
-        .order('id');
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const { data: rows, error: queryError } = await supabase
+      .from('rekening')
+      .select('*')
+      .order('id');
 
-      if (!error && rekeningData && rekeningData.length > 0) {
-        setData(rekeningData.map(r => ({
-          id: r.id,
-          nama: r.nama_rekening,
-          jenis: r.jenis,
-          nomor: r.nomor || '-',
-          bank: r.bank || '-',
-          saldo: r.saldo_saat_ini,
-        })));
-      }
-      setLoading(false);
+    if (queryError) {
+      setError(queryError.message);
+      setData([]);
+    } else {
+      setError(null);
+      setData((rows || []).map((row: any) => ({
+        id: row.id,
+        nama: row.nama_rekening,
+        jenis: row.jenis,
+        nomor: row.nomor || '-',
+        bank: row.bank || '-',
+        saldo: toNumber(row.saldo_saat_ini),
+        saldo_awal: toNumber(row.saldo_awal),
+        is_active: row.is_active,
+      })));
     }
-
-    fetchData();
+    setLoading(false);
   }, []);
 
-  return { data, loading };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { data, loading, error, refresh };
 }
 
-// Hook untuk Penerimaan
+function useTransactionData(type: TransactionType) {
+  const [data, setData] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [rekening, setRekening] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    const table = type === 'penerimaan' ? 'penerimaan' : 'pengeluaran';
+    const orderColumn = type === 'penerimaan' ? 'tanggal' : 'tanggal_pengajuan';
+
+    const [trxRes, catRes, rekRes] = await Promise.all([
+      supabase.from(table).select('*, kategori_transaksi(nama_kategori), rekening(nama_rekening)').order(orderColumn, { ascending: false }),
+      supabase.from('kategori_transaksi').select('*').order('nama_kategori'),
+      supabase.from('rekening').select('*').order('id'),
+    ]);
+
+    if (trxRes.error) {
+      setError(trxRes.error.message);
+      setData([]);
+    } else {
+      setData((trxRes.data || []).map((row: any) => ({
+        id: row.id,
+        nomor: row.nomor,
+        tanggal: type === 'penerimaan' ? row.tanggal : row.tanggal_pengajuan,
+        tanggal_pembayaran: row.tanggal_pembayaran,
+        tipe: type,
+        kategori_id: row.kategori_id,
+        kategori: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+        rekening_id: row.rekening_id,
+        rekening: row.rekening?.nama_rekening || '-',
+        nominal: toNumber(row.nominal),
+        sumber: type === 'penerimaan' ? row.sumber : row.deskripsi,
+        metode_bayar: row.metode_bayar,
+        keterangan: row.keterangan,
+        status: row.status,
+        raw: row,
+      })));
+    }
+
+    if (!catRes.error) {
+      setCategories((catRes.data || []).filter((row: any) => row.is_active !== false && (row.tipe === type || row.tipe === 'semua')));
+    }
+    if (!rekRes.error) {
+      setRekening((rekRes.data || []).filter((row: any) => row.is_active !== false));
+    }
+    setLoading(false);
+  }, [type]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const create = useCallback(async (input: Record<string, any>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const nominal = toNumber(input.nominal);
+      if (nominal <= 0) throw new Error('Nominal harus lebih dari 0.');
+
+      if (type === 'penerimaan') {
+        const payload = {
+          nomor: input.nomor || makeTransactionNumber('penerimaan'),
+          tanggal: input.tanggal || todayISO(),
+          sumber: input.sumber || '-',
+          kategori_id: input.kategori_id ? Number(input.kategori_id) : null,
+          rekening_id: input.rekening_id ? Number(input.rekening_id) : null,
+          nominal,
+          metode_bayar: input.metode_bayar || null,
+          keterangan: input.keterangan || null,
+          status: input.status || 'terverifikasi',
+        };
+        const { error: insertError } = await supabase.from('penerimaan').insert(payload);
+        if (insertError) throw new Error(insertError.message);
+      } else {
+        const status = input.status || 'menunggu';
+        const payload = {
+          nomor: input.nomor || makeTransactionNumber('pengeluaran'),
+          tanggal_pengajuan: input.tanggal || todayISO(),
+          tanggal_pembayaran: status === 'lunas' ? (input.tanggal_pembayaran || input.tanggal || todayISO()) : (input.tanggal_pembayaran || null),
+          kategori_id: input.kategori_id ? Number(input.kategori_id) : null,
+          rekening_id: input.rekening_id ? Number(input.rekening_id) : null,
+          nominal,
+          deskripsi: input.sumber || input.deskripsi || '-',
+          status,
+        };
+        const { error: insertError } = await supabase.from('pengeluaran').insert(payload);
+        if (insertError) throw new Error(insertError.message);
+      }
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh, type]);
+
+  const update = useCallback(async (id: number, input: Record<string, any>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const nominal = toNumber(input.nominal);
+      if (nominal <= 0) throw new Error('Nominal harus lebih dari 0.');
+
+      if (type === 'penerimaan') {
+        const payload = {
+          tanggal: input.tanggal || todayISO(),
+          sumber: input.sumber || '-',
+          kategori_id: input.kategori_id ? Number(input.kategori_id) : null,
+          rekening_id: input.rekening_id ? Number(input.rekening_id) : null,
+          nominal,
+          metode_bayar: input.metode_bayar || null,
+          keterangan: input.keterangan || null,
+          status: input.status || 'terverifikasi',
+        };
+        const { error: updateError } = await supabase.from('penerimaan').update(payload).eq('id', id);
+        if (updateError) throw new Error(updateError.message);
+      } else {
+        const status = input.status || 'menunggu';
+        const payload = {
+          tanggal_pengajuan: input.tanggal || todayISO(),
+          tanggal_pembayaran: status === 'lunas' ? (input.tanggal_pembayaran || input.tanggal || todayISO()) : (input.tanggal_pembayaran || null),
+          kategori_id: input.kategori_id ? Number(input.kategori_id) : null,
+          rekening_id: input.rekening_id ? Number(input.rekening_id) : null,
+          nominal,
+          deskripsi: input.sumber || input.deskripsi || '-',
+          status,
+        };
+        const { error: updateError } = await supabase.from('pengeluaran').update(payload).eq('id', id);
+        if (updateError) throw new Error(updateError.message);
+      }
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh, type]);
+
+  const remove = useCallback(async (id: number) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const table = type === 'penerimaan' ? 'penerimaan' : 'pengeluaran';
+      const { error: deleteError } = await supabase.from(table).delete().eq('id', id);
+      if (deleteError) throw new Error(deleteError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh, type]);
+
+  return { data, categories, rekening, loading, saving, error, refresh, create, update, remove };
+}
+
 export function usePenerimaan() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      const { data: penerimaanData, error } = await supabase
-        .from('penerimaan')
-        .select('*, kategori_transaksi(nama_kategori)')
-        .order('tanggal', { ascending: false });
-
-      if (!error && penerimaanData && penerimaanData.length > 0) {
-        setData(penerimaanData.map(p => ({
-          id: p.id,
-          nomor: p.nomor,
-          tanggal: p.tanggal,
-          tipe: 'penerimaan',
-          kategori: p.kategori_transaksi?.nama_kategori || 'Unknown',
-          nominal: p.nominal,
-          sumber: p.sumber,
-          status: p.status,
-        })));
-      } else {
-        setData(mockRecentTransactions.filter(t => t.tipe === 'penerimaan'));
-      }
-      setLoading(false);
-    }
-
-    fetchData();
-  }, []);
-
-  return { data, loading };
+  return useTransactionData('penerimaan');
 }
 
-// Hook untuk Pengeluaran
 export function usePengeluaran() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      const { data: pengeluaranData, error } = await supabase
-        .from('pengeluaran')
-        .select('*, kategori_transaksi(nama_kategori)')
-        .order('tanggal_pengajuan', { ascending: false });
-
-      if (!error && pengeluaranData && pengeluaranData.length > 0) {
-        setData(pengeluaranData.map(p => ({
-          id: p.id,
-          nomor: p.nomor,
-          tanggal: p.tanggal_pengajuan,
-          tipe: 'pengeluaran',
-          kategori: p.kategori_transaksi?.nama_kategori || 'Unknown',
-          nominal: p.nominal,
-          sumber: p.deskripsi,
-          status: p.status,
-        })));
-      } else {
-        setData(mockRecentTransactions.filter(t => t.tipe === 'pengeluaran'));
-      }
-      setLoading(false);
-    }
-
-    fetchData();
-  }, []);
-
-  return { data, loading };
+  return useTransactionData('pengeluaran');
 }
 
-// Hook untuk Anggaran
 export function useAnggaran() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tahun, setTahun] = useState(currentYear());
 
-  useEffect(() => {
-    async function fetchData() {
-      const { data: anggaranData, error } = await supabase
-        .from('anggaran')
-        .select('*, kategori_transaksi(nama_kategori)')
-        .eq('tahun', 2024);
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const [anggaranRes, pengeluaranRes] = await Promise.all([
+      supabase.from('anggaran').select('*, kategori_transaksi(nama_kategori)').order('tahun', { ascending: false }),
+      supabase.from('pengeluaran').select('kategori_id, nominal, status, tanggal_pembayaran, tanggal_pengajuan'),
+    ]);
 
-      if (!error && anggaranData && anggaranData.length > 0) {
-        setData(anggaranData.map(a => ({
-          pos: a.kategori_transaksi?.nama_kategori || 'Unknown',
-          anggaran: a.jumlah_anggaran,
-          realisasi: a.realisasi,
-        })));
-      } else {
-        setData(mockAnggaranData);
-      }
+    if (anggaranRes.error) {
+      setError(anggaranRes.error.message);
+      setData([]);
       setLoading(false);
+      return;
     }
 
-    fetchData();
+    const rows = anggaranRes.data || [];
+    const years = Array.from(new Set(rows.map((row: any) => Number(row.tahun)).filter(Boolean))).sort((a, b) => b - a);
+    const selectedYear = years.includes(currentYear()) ? currentYear() : (years[0] || currentYear());
+    setTahun(selectedYear);
+
+    const realisasiByCategory = new Map<number, number>();
+    (pengeluaranRes.data || [])
+      .filter((row: any) => row.status === 'lunas' && getYearFromDate(row.tanggal_pembayaran || row.tanggal_pengajuan) === selectedYear)
+      .forEach((row: any) => {
+        const categoryId = Number(row.kategori_id || 0);
+        realisasiByCategory.set(categoryId, (realisasiByCategory.get(categoryId) || 0) + toNumber(row.nominal));
+      });
+
+    setData(rows.filter((row: any) => Number(row.tahun) === selectedYear).map((row: any) => ({
+      id: row.id,
+      pos: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+      kategori_id: row.kategori_id,
+      anggaran: toNumber(row.jumlah_anggaran),
+      realisasi: realisasiByCategory.get(Number(row.kategori_id)) ?? toNumber(row.realisasi),
+      catatan: row.catatan,
+    })));
+    setLoading(false);
   }, []);
 
-  return { data, loading };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { data, loading, error, tahun, refresh };
 }
 
-// Hook untuk Iuran
 export function useIuran() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      const { data: iuranData, error } = await supabase
-        .from('iuran')
-        .select('*, warga(nama, nik, rts(nomor_rt))')
-        .order('id');
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data: rows, error: queryError } = await supabase
+      .from('iuran')
+      .select('*, warga(id, nama, nik, rt_id, rts(nomor_rt))')
+      .order('periode', { ascending: false })
+      .order('id', { ascending: true });
 
-      if (!error && iuranData && iuranData.length > 0) {
-        setData(iuranData.map(i => ({
-          id: i.id,
-          nama: i.warga?.nama || 'Unknown',
-          rt: i.warga?.rts?.nomor_rt || '-',
-          nik: i.warga?.nik || '-',
-          tagihan: i.jumlah_tagihan,
-          status: i.status,
-          periode: i.periode,
-        })));
-      }
+    if (queryError) {
+      setError(queryError.message);
+      setData([]);
       setLoading(false);
+      return;
     }
 
-    fetchData();
+    const deduped = new Map<string, any>();
+    (rows || []).forEach((row: any) => {
+      const key = `${row.warga_id || row.id}-${row.periode}`;
+      const current = deduped.get(key);
+      const rank = row.status === 'lunas' ? 2 : row.status === 'terlambat' ? 1 : 0;
+      const currentRank = current?.status === 'lunas' ? 2 : current?.status === 'terlambat' ? 1 : 0;
+      if (!current || rank > currentRank || toNumber(row.jumlah_bayar) > toNumber(current.jumlah_bayar)) {
+        deduped.set(key, row);
+      }
+    });
+
+    setData(Array.from(deduped.values()).map((row: any) => ({
+      id: row.id,
+      warga_id: row.warga_id,
+      nama: row.warga?.nama || 'Tanpa Nama',
+      rt: row.warga?.rts?.nomor_rt || '-',
+      rt_id: row.warga?.rt_id,
+      nik: row.warga?.nik || '-',
+      tagihan: toNumber(row.jumlah_tagihan),
+      jumlah_bayar: toNumber(row.jumlah_bayar),
+      status: row.status,
+      periode: row.periode,
+      periodeLabel: formatPeriodLabel(row.periode),
+      tanggal_jatuh_tempo: row.tanggal_jatuh_tempo,
+      tanggal_bayar: row.tanggal_bayar,
+      metode_bayar: row.metode_bayar,
+    })));
+    setLoading(false);
   }, []);
 
-  return { data, loading };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const markPaid = useCallback(async (id: number, jumlahBayar?: number, metodeBayar = 'Tunai') => {
+    setSaving(true);
+    setError(null);
+    try {
+      const item = data.find((row) => row.id === id);
+      const bayar = jumlahBayar ?? item?.tagihan ?? 0;
+      const { error: updateError } = await supabase
+        .from('iuran')
+        .update({
+          status: 'lunas',
+          jumlah_bayar: bayar,
+          tanggal_bayar: todayISO(),
+          metode_bayar: metodeBayar,
+        })
+        .eq('id', id);
+      if (updateError) throw new Error(updateError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [data, refresh]);
+
+  const generateIuranForPeriod = useCallback(async (periode: string, jumlahTagihan: number) => {
+    setSaving(true);
+    setError(null);
+    try {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periode)) throw new Error('Format periode harus YYYY-MM.');
+      if (jumlahTagihan < 0) throw new Error('Jumlah tagihan tidak valid.');
+
+      const [wargaRes, existingRes] = await Promise.all([
+        supabase.from('warga').select('id').eq('status', 'aktif'),
+        supabase.from('iuran').select('warga_id').eq('periode', periode),
+      ]);
+      if (wargaRes.error) throw new Error(wargaRes.error.message);
+      if (existingRes.error) throw new Error(existingRes.error.message);
+
+      const existing = new Set((existingRes.data || []).map((row: any) => Number(row.warga_id)));
+      const rows = (wargaRes.data || [])
+        .filter((row: any) => !existing.has(Number(row.id)))
+        .map((row: any) => ({
+          warga_id: row.id,
+          periode,
+          jumlah_tagihan: jumlahTagihan,
+          jumlah_bayar: 0,
+          status: 'belum',
+          tanggal_jatuh_tempo: `${periode}-10`,
+        }));
+
+      if (rows.length > 0) {
+        const { error: insertError } = await supabase.from('iuran').insert(rows);
+        if (insertError) throw new Error(insertError.message);
+      }
+      await refresh();
+      return rows.length;
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  return { data, loading, saving, error, refresh, markPaid, generateIuranForPeriod };
 }
 
-// Hook untuk Aset
 export function useAset() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      const { data: asetData, error } = await supabase
-        .from('aset')
-        .select('*')
-        .order('id');
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data: rows, error: queryError } = await supabase
+      .from('aset')
+      .select('*')
+      .order('id');
 
-      if (!error && asetData && asetData.length > 0) {
-        setData(asetData.map(a => ({
-          kode: a.kode_aset,
-          nama: a.nama,
-          kategori: a.kategori,
-          nilai: a.nilai_perolehan,
-          lokasi: a.lokasi,
-          kondisi: a.kondisi,
-        })));
-      }
-      setLoading(false);
+    if (queryError) {
+      setError(queryError.message);
+      setData([]);
+    } else {
+      setData((rows || []).map((row: any) => ({
+        id: row.id,
+        kode: row.kode_aset,
+        nama: row.nama,
+        kategori: row.kategori || '-',
+        nilai: toNumber(row.nilai_perolehan),
+        tanggal_perolehan: row.tanggal_perolehan,
+        lokasi: row.lokasi || '-',
+        kondisi: row.kondisi,
+        keterangan: row.keterangan,
+      })));
     }
-
-    fetchData();
+    setLoading(false);
   }, []);
 
-  return { data, loading };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const create = useCallback(async (input: Record<string, any>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        kode_aset: input.kode_aset || input.kode || `AST-${Date.now().toString().slice(-6)}`,
+        nama: input.nama,
+        kategori: input.kategori || null,
+        nilai_perolehan: toNumber(input.nilai_perolehan ?? input.nilai),
+        tanggal_perolehan: input.tanggal_perolehan || todayISO(),
+        lokasi: input.lokasi || null,
+        kondisi: input.kondisi || 'Baik',
+        keterangan: input.keterangan || null,
+      };
+      if (!payload.nama) throw new Error('Nama aset wajib diisi.');
+      const { error: insertError } = await supabase.from('aset').insert(payload);
+      if (insertError) throw new Error(insertError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  const remove = useCallback(async (id: number) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: deleteError } = await supabase.from('aset').delete().eq('id', id);
+      if (deleteError) throw new Error(deleteError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  return { data, loading, saving, error, refresh, create, remove };
+}
+
+export function usePengguna() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data: rows, error: queryError } = await supabase
+      .from('users')
+      .select('*, roles(nama_role), rts(nomor_rt)')
+      .order('nama');
+
+    if (queryError) {
+      setError(queryError.message);
+      setData([]);
+    } else {
+      setData((rows || []).map((row: any) => ({
+        id: row.id,
+        nama: row.nama,
+        email: row.email,
+        role: row.roles?.nama_role || 'Tanpa Role',
+        rt: row.rts?.nomor_rt || '-',
+        status: row.is_active ? 'aktif' : 'nonaktif',
+        lastLogin: row.last_login ? new Date(row.last_login).toLocaleString('id-ID') : '-',
+      })));
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { data, loading, error, refresh };
+}
+
+export function useAuditLogs() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data: rows, error: queryError } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (queryError) {
+      setError(queryError.message);
+      setData([]);
+    } else {
+      setData((rows || []).map((row: any) => ({
+        id: row.id,
+        user: row.user_name || 'system',
+        action: row.action,
+        table: row.table_name || '-',
+        record: row.record_id || '-',
+        waktu: row.created_at ? new Date(row.created_at).toLocaleString('id-ID') : '-',
+        detail: `${row.action} pada ${row.table_name || '-'}`,
+        old_data: row.old_data,
+        new_data: row.new_data,
+      })));
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { data, loading, error, refresh };
+}
+
+export function useLaporanData() {
+  const dashboard = useDashboardData();
+  const [arusKas, setArusKas] = useState<any[]>([]);
+  const [loadingArusKas, setLoadingArusKas] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshArusKas = useCallback(async () => {
+    setLoadingArusKas(true);
+    setError(null);
+    const { data: rows, error: queryError } = await supabase
+      .from('v_laporan_arus_kas')
+      .select('*')
+      .order('tanggal', { ascending: false });
+
+    if (queryError) {
+      setError(queryError.message);
+      setArusKas([]);
+    } else {
+      setArusKas((rows || []).map((row: any) => ({
+        tanggal: row.tanggal,
+        tipe: row.tipe,
+        referensi: row.referensi,
+        kategori: row.kategori || '-',
+        rekening: row.rekening || '-',
+        uraian: row.uraian || '-',
+        masuk: toNumber(row.masuk),
+        keluar: toNumber(row.keluar),
+        status: row.status,
+      })));
+    }
+    setLoadingArusKas(false);
+  }, []);
+
+  useEffect(() => {
+    refreshArusKas();
+  }, [refreshArusKas]);
+
+  return {
+    ...dashboard,
+    arusKas,
+    loadingArusKas,
+    laporanError: error,
+    refreshArusKas,
+  };
 }

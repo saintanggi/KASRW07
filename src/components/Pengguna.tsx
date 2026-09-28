@@ -1,15 +1,30 @@
 import React from 'react';
-import { UserCog, Plus, Edit, Trash2, Shield, Eye, Lock } from 'lucide-react';
-import { usersData } from '../data/mockData';
+import { UserCog, Plus, Edit, Shield, Eye, Lock, Database, Loader2, RefreshCw } from 'lucide-react';
+import { usePengguna } from '../hooks/useSupabaseData';
 
 const Pengguna: React.FC = () => {
+  const { data: users, loading, error, refresh } = usePengguna();
   const roleColors: Record<string, string> = {
+    'Super Admin': 'bg-red-100 text-red-700',
     'Ketua RW': 'bg-purple-100 text-purple-700',
     'Bendahara': 'bg-blue-100 text-blue-700',
+    'Sekretaris': 'bg-teal-100 text-teal-700',
     'Pengurus RT': 'bg-emerald-100 text-emerald-700',
     'Auditor': 'bg-amber-100 text-amber-700',
     'Warga': 'bg-gray-100 text-gray-700',
+    'Tanpa Role': 'bg-gray-100 text-gray-700',
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-violet-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Memuat data pengguna...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -29,12 +44,23 @@ const Pengguna: React.FC = () => {
         </button>
       </div>
 
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+        <Database className="w-5 h-5 text-emerald-600" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-emerald-800">✅ Data pengguna dari Supabase</p>
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        </div>
+        <button onClick={refresh} className="text-xs px-3 py-1.5 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100 flex items-center gap-1">
+          <RefreshCw className="w-3 h-3" /> Refresh
+        </button>
+      </div>
+
       {/* Role Summary */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {Object.entries(roleColors).map(([role, color]) => (
           <div key={role} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
             <span className={`text-xs px-2 py-1 rounded-full font-medium ${color}`}>{role}</span>
-            <p className="text-2xl font-bold text-gray-800 mt-2">{usersData.filter(u => u.role === role).length}</p>
+            <p className="text-2xl font-bold text-gray-800 mt-2">{users.filter((u: any) => u.role === role).length}</p>
             <p className="text-xs text-gray-500">pengguna</p>
           </div>
         ))}
@@ -56,19 +82,19 @@ const Pengguna: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {usersData.map((user) => (
+              {users.map((user: any) => (
                 <tr key={user.id} className="border-t border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-violet-100 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-violet-600">{user.nama.split(' ').map(n => n[0]).join('').slice(0, 2)}</span>
+                        <span className="text-xs font-medium text-violet-600">{user.nama.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</span>
                       </div>
                       <span className="text-sm font-medium text-gray-800">{user.nama}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{user.email}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${roleColors[user.role]}`}>
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${roleColors[user.role] || roleColors['Tanpa Role']}`}>
                       {user.role}
                     </span>
                   </td>

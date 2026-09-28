@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Bell, Search, ChevronRight } from 'lucide-react';
+import { Menu, Bell, Search, ChevronRight } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
@@ -87,7 +87,7 @@ function App() {
 
             {/* Breadcrumb */}
             <nav className="flex items-center gap-1 text-sm">
-              <span className="text-gray-400">Sistem Keuangan RW</span>
+              <span className="text-gray-400">Sistem Kas RW 07</span>
               <ChevronRight className="w-4 h-4 text-gray-300" />
               <span className="text-gray-800 font-medium">{menuLabels[activeMenu]}</span>
             </nav>
@@ -151,11 +151,11 @@ function App() {
             {/* User Avatar */}
             <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
               <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-medium">SW</span>
+                <span className="text-white text-xs font-medium">B</span>
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-medium text-gray-800">Sri Wahyuni</p>
-                <p className="text-xs text-gray-500">Bendahara</p>
+                <p className="text-sm font-medium text-gray-800">Bendahara RW 07</p>
+                <p className="text-xs text-gray-500">Operator</p>
               </div>
             </div>
           </div>
@@ -169,8 +169,8 @@ function App() {
         {/* Footer */}
         <footer className="bg-white border-t border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between text-xs text-gray-500">
-            <p>© 2024 Sistem Keuangan RW 05 - Kelurahan Sukamaju</p>
-            <p>v1.0.0 | Terakhir diperbarui: 6 Desember 2024</p>
+            <p>© 2026 Sistem Kas RW 07</p>
+            <p>v2.0.0 | Terakhir diperbarui: 28 September 2026</p>
           </div>
         </footer>
       </div>

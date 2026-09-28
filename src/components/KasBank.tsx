@@ -7,7 +7,7 @@ const formatCurrency = (value: number) => {
 };
 
 const KasBank: React.FC = () => {
-  const { data: rekeningData, loading } = useRekening();
+  const { data: rekeningData, loading, error, refresh } = useRekening();
   const totalSaldo = rekeningData.reduce((sum: number, r: any) => sum + r.saldo, 0);
 
   if (loading) {
@@ -26,7 +26,11 @@ const KasBank: React.FC = () => {
       {/* Connection Status */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
         <Database className="w-5 h-5 text-emerald-600" />
-        <p className="text-sm font-medium text-emerald-800">✅ Data rekening dari Supabase</p>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-emerald-800">✅ Data rekening dari Supabase</p>
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        </div>
+        <button onClick={refresh} className="text-xs px-3 py-1.5 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100">Refresh</button>
       </div>
 
       {/* Header */}
@@ -37,7 +41,7 @@ const KasBank: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Kas & Bank</h1>
-            <p className="text-gray-500 text-sm">Kelola saldo kas dan rekening bank RW 05</p>
+            <p className="text-gray-500 text-sm">Kelola saldo kas dan rekening bank RW 07</p>
           </div>
         </div>
         <div className="flex gap-2">

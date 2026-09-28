@@ -1,0 +1,19 @@
+CARA UPLOAD KE GITHUB DAN DEPLOY
+
+1. Extract file ZIP ini.
+2. Upload semua isi folder KASRW07 ke repo GitHub Anda.
+3. Jika memakai Git command:
+   git add .
+   git commit -m "fix: rombak sistem kas rw07"
+   git push origin main
+
+4. Di Supabase SQL Editor, jalankan file:
+   supabase/RESET_DATABASE_RW07.sql
+
+5. Di Vercel, isi Environment Variables:
+   VITE_SUPABASE_URL=https://PROJECT-REF.supabase.co
+   VITE_SUPABASE_ANON_KEY=ANON_KEY_ANDA
+
+6. Redeploy Vercel.
+
+JANGAN upload node_modules, dist, atau file .env. ZIP ini sudah tidak menyertakan file-file tersebut.

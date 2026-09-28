@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Users, CheckCircle, XCircle, Bell, Download, Plus, Search, Filter, Database, Loader2 } from 'lucide-react';
-import { useIuran } from '../hooks/useSupabaseData';
+import { Users, CheckCircle, XCircle, Download, Plus, Search, Database, Loader2, RefreshCw } from 'lucide-react';
+import { currentPeriod, useIuran } from '../hooks/useSupabaseData';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 };
 
 const Iuran: React.FC = () => {
-  const { data: wargaData, loading } = useIuran();
+  const { data: wargaData, loading, saving, error, refresh, markPaid, generateIuranForPeriod } = useIuran();
   const [filterRT, setFilterRT] = useState('semua');
   const [filterStatus, setFilterStatus] = useState('semua');
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,7 +16,21 @@ const Iuran: React.FC = () => {
   const totalLunas = wargaData.filter((w: any) => w.status === 'lunas').length;
   const totalBelum = wargaData.filter((w: any) => w.status === 'belum').length;
   const totalTagihan = wargaData.reduce((sum: number, w: any) => sum + w.tagihan, 0);
-  const totalTerkumpul = wargaData.filter((w: any) => w.status === 'lunas').reduce((sum: number, w: any) => sum + w.tagihan, 0);
+  const totalTerkumpul = wargaData.filter((w: any) => w.status === 'lunas').reduce((sum: number, w: any) => sum + w.jumlah_bayar, 0);
+  const rtOptions = Array.from(new Set(wargaData.map((w: any) => w.rt).filter(Boolean))).sort();
+
+  const handleGenerateIuran = async () => {
+    const periode = window.prompt('Masukkan periode iuran (format YYYY-MM):', currentPeriod());
+    if (!periode) return;
+    const amountText = window.prompt('Masukkan nominal tagihan per warga:', '50000');
+    if (!amountText) return;
+    try {
+      const inserted = await generateIuranForPeriod(periode, Number(amountText));
+      alert(`Berhasil membuat ${inserted} tagihan baru. Data yang sudah ada tidak diduplikasi.`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal membuat iuran.');
+    }
+  };
 
   const filteredWarga = wargaData.filter((w: any) => {
     const matchesRT = filterRT === 'semua' || w.rt === filterRT;
@@ -41,7 +55,13 @@ const Iuran: React.FC = () => {
       {/* Connection Status */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
         <Database className="w-5 h-5 text-emerald-600" />
-        <p className="text-sm font-medium text-emerald-800">✅ Data iuran dari Supabase</p>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-emerald-800">✅ Data iuran dari Supabase</p>
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        </div>
+        <button onClick={refresh} className="text-xs px-3 py-1.5 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100 flex items-center gap-1">
+          <RefreshCw className="w-3 h-3" /> Refresh
+        </button>
       </div>
 
       {/* Header */}
@@ -52,15 +72,15 @@ const Iuran: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Iuran Warga</h1>
-            <p className="text-gray-500 text-sm">Kelola iuran bulanan warga RW 05</p>
+            <p className="text-gray-500 text-sm">Kelola iuran bulanan warga RW 07</p>
           </div>
         </div>
         <div className="flex gap-2">
           <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
             <Download className="w-4 h-4" /> Ekspor
           </button>
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Input Iuran
+          <button onClick={handleGenerateIuran} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-60">
+            <Plus className="w-4 h-4" /> {saving ? 'Memproses...' : 'Generate Iuran'}
           </button>
         </div>
       </div>
@@ -100,9 +120,7 @@ const Iuran: React.FC = () => {
           </div>
           <select value={filterRT} onChange={(e) => setFilterRT(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
             <option value="semua">Semua RT</option>
-            <option value="RT 01">RT 01</option>
-            <option value="RT 02">RT 02</option>
-            <option value="RT 03">RT 03</option>
+            {rtOptions.map((rt) => <option key={rt} value={rt}>{rt}</option>)}
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
             <option value="semua">Semua Status</option>
@@ -147,8 +165,8 @@ const Iuran: React.FC = () => {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {warga.status === 'belum' && (
-                      <button className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700">
+                    {warga.status !== 'lunas' && (
+                      <button disabled={saving} onClick={() => markPaid(warga.id)} className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 disabled:opacity-60">
                         Catat Bayar
                       </button>
                     )}

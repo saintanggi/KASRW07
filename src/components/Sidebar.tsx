@@ -45,8 +45,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeMenu, setActiveMenu, collapsed 
           </div>
           {!collapsed && (
             <div>
-              <h1 className="text-white font-bold text-sm">Keuangan RW 05</h1>
-              <p className="text-emerald-300 text-xs">Kelurahan Sukamaju</p>
+              <h1 className="text-white font-bold text-sm">Kas RW 07</h1>
+              <p className="text-emerald-300 text-xs">Manajemen Keuangan</p>
             </div>
           )}
         </div>
@@ -57,11 +57,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeMenu, setActiveMenu, collapsed 
         <div className="p-4 border-b border-emerald-700">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-emerald-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-medium">SW</span>
+              <span className="text-white text-sm font-medium">B</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">Sri Wahyuni</p>
-              <p className="text-emerald-300 text-xs">Bendahara RW</p>
+              <p className="text-white text-sm font-medium truncate">Bendahara RW 07</p>
+              <p className="text-emerald-300 text-xs">Mode Operator</p>
             </div>
             <ChevronDown className="w-4 h-4 text-emerald-300" />
           </div>

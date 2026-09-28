@@ -1,50 +1,32 @@
-# 🔗 Koneksi Supabase - Status
+# Koneksi Supabase - Sistem Kas RW 07
 
-## ✅ Database Terhubung
+Aplikasi membaca konfigurasi Supabase dari environment variable Vite:
 
-Aplikasi sekarang **TERHUBUNG** ke database Supabase:
-- **URL**: https://aplsaypiqyrewwvwczsr.supabase.co
-- **Project**: sistem-keuangan-rw
+```env
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
 
-## 📊 Data yang Diambil dari Database
+Untuk kemudahan transisi, kode masih memiliki fallback ke project Supabase lama. Namun untuk deploy produksi, tetap isi environment variable di Vercel.
 
-| Modul | Tabel Supabase | Status |
-|-------|----------------|--------|
-| Dashboard | rekening, penerimaan, pengeluaran, anggaran | ✅ Live |
-| Penerimaan | penerimaan + kategori_transaksi | ✅ Live |
-| Pengeluaran | pengeluaran + kategori_transaksi | ✅ Live |
-| Anggaran | anggaran + kategori_transaksi | ✅ Live |
-| Kas & Bank | rekening | ✅ Live |
-| Iuran Warga | v_iuran_warga (view) | ✅ Live |
-| Inventaris | aset | ✅ Live |
+## Modul yang sudah memakai Supabase
 
-## 🔄 Fallback ke Mock Data
+| Modul | Status |
+|---|---|
+| Dashboard | Data real dari rekening, penerimaan, pengeluaran, anggaran, iuran |
+| Penerimaan | CRUD Supabase |
+| Pengeluaran | CRUD Supabase |
+| Anggaran | Baca Supabase + realisasi dari pengeluaran lunas |
+| Kas & Bank | Baca Supabase, saldo dihitung otomatis oleh trigger database |
+| Iuran Warga | Baca/tandai lunas/generate tagihan Supabase |
+| Inventaris & Aset | Tambah/hapus Supabase |
+| Laporan | Baca view Supabase + ekspor CSV |
+| Pengguna | Baca users/roles/rts Supabase |
+| Audit Trail | Baca audit_logs Supabase |
 
-Jika database Supabase tidak dapat diakses atau kosong, sistem akan **otomatis fallback** ke mock data untuk demo. Ini memastikan aplikasi tetap berjalan meski database belum diisi.
+## File penting
 
-## 📁 File yang Terkait
-
-- `src/lib/supabase.ts` - Konfigurasi client Supabase
-- `src/hooks/useSupabaseData.ts` - Custom hooks untuk fetch data
-- `.env` - Environment variables (credentials)
-
-## 🚀 Cara Kerja
-
-1. Saat aplikasi dimuat, hooks akan mencoba fetch data dari Supabase
-2. Jika berhasil → tampilkan data dari database
-3. Jika gagal/kosong → tampilkan mock data (fallback)
-4. Loading spinner ditampilkan saat data sedang di-fetch
-
-## ⚡ Fitur
-
-- ✅ Real-time data dari Supabase
-- ✅ Loading states untuk UX yang baik
-- ✅ Error handling & fallback
-- ✅ Type-safe dengan TypeScript
-- ✅ Connection indicator di setiap halaman
-
-## 📝 Catatan Penting
-
-- Data grafik 12 bulan masih menggunakan mock data (karena butuh agregasi kompleks)
-- Untuk produksi, pastikan tabel di Supabase sudah terisi data
-- Jalankan `supabase/schema.sql` untuk setup database
+- `src/lib/supabase.ts`
+- `src/hooks/useSupabaseData.ts`
+- `supabase/RESET_DATABASE_RW07.sql`
+- `README_DEPLOY_RW07.md`

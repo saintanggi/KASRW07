@@ -8,10 +8,11 @@ const formatCurrency = (value: number) => {
 };
 
 const Anggaran: React.FC = () => {
-  const { data: anggaranData, loading } = useAnggaran();
+  const { data: anggaranData, loading, error, tahun, refresh } = useAnggaran();
   const totalAnggaran = anggaranData.reduce((sum: number, item: any) => sum + item.anggaran, 0);
   const totalRealisasi = anggaranData.reduce((sum: number, item: any) => sum + item.realisasi, 0);
   const sisaAnggaran = totalAnggaran - totalRealisasi;
+  const persentaseTotal = totalAnggaran > 0 ? Math.round((totalRealisasi / totalAnggaran) * 100) : 0;
 
   if (loading) {
     return (
@@ -29,7 +30,11 @@ const Anggaran: React.FC = () => {
       {/* Connection Status */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
         <Database className="w-5 h-5 text-emerald-600" />
-        <p className="text-sm font-medium text-emerald-800">✅ Data anggaran dari Supabase</p>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-emerald-800">✅ Data anggaran dari Supabase</p>
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        </div>
+        <button onClick={refresh} className="text-xs px-3 py-1.5 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100">Refresh</button>
       </div>
 
       {/* Header */}
@@ -40,7 +45,7 @@ const Anggaran: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Anggaran</h1>
-            <p className="text-gray-500 text-sm">Rencana dan realisasi anggaran RW 05 Tahun 2024</p>
+            <p className="text-gray-500 text-sm">Rencana dan realisasi anggaran RW 07 Tahun {tahun}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -62,7 +67,7 @@ const Anggaran: React.FC = () => {
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Total Realisasi</p>
           <p className="text-xl font-bold text-emerald-600 mt-1">{formatCurrency(totalRealisasi)}</p>
-          <p className="text-xs text-emerald-500 mt-1">{Math.round((totalRealisasi / totalAnggaran) * 100)}% dari anggaran</p>
+          <p className="text-xs text-emerald-500 mt-1">{persentaseTotal}% dari anggaran</p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Sisa Anggaran</p>
@@ -110,7 +115,7 @@ const Anggaran: React.FC = () => {
             <tbody>
               {anggaranData.map((item: any) => {
                 const sisa = item.anggaran - item.realisasi;
-                const persentase = Math.round((item.realisasi / item.anggaran) * 100);
+                const persentase = item.anggaran > 0 ? Math.round((item.realisasi / item.anggaran) * 100) : 0;
                 return (
                   <tr key={item.pos} className="border-t border-gray-50 hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-800">{item.pos}</td>

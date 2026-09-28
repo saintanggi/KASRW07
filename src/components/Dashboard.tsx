@@ -16,10 +16,11 @@ const formatCurrency = (value: number) => {
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 const Dashboard: React.FC = () => {
-  const { kpi, monthlyData, anggaranData, recentTransactions, pendingApprovals, notifications, loading } = useDashboardData();
+  const { kpi, monthlyData, anggaranData, recentTransactions, pendingApprovals, notifications, loading, error, refresh, periodeLabel, tahunAnggaran } = useDashboardData();
 
   const totalAnggaran = anggaranData.reduce((sum: number, item: any) => sum + item.anggaran, 0);
   const totalRealisasi = anggaranData.reduce((sum: number, item: any) => sum + item.realisasi, 0);
+  const persentaseTotal = totalAnggaran > 0 ? Math.round((totalRealisasi / totalAnggaran) * 100) : 0;
 
   if (loading) {
     return (
@@ -45,14 +46,16 @@ const Dashboard: React.FC = () => {
           <p className="text-xs text-emerald-600">
             Data diambil secara real-time dari database Supabase
           </p>
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
         </div>
+        <button onClick={refresh} className="text-xs px-3 py-1.5 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-100">Refresh</button>
       </div>
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Dashboard Keuangan</h1>
-          <p className="text-gray-500 text-sm">RW 05 - Kelurahan Sukamaju | Periode: Desember 2024</p>
+          <p className="text-gray-500 text-sm">RW 07 | Periode: {periodeLabel} | Tahun Anggaran: {tahunAnggaran}</p>
         </div>
         <div className="flex gap-2">
           <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
@@ -176,7 +179,7 @@ const Dashboard: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Realisasi Anggaran Tahunan</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {anggaranData.map((item: any, index: number) => {
-            const persentase = Math.round((item.realisasi / item.anggaran) * 100);
+            const persentase = item.anggaran > 0 ? Math.round((item.realisasi / item.anggaran) * 100) : 0;
             return (
               <div key={index} className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center mb-2">
@@ -199,7 +202,7 @@ const Dashboard: React.FC = () => {
         </div>
         <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
           <span className="text-sm font-medium text-gray-600">Total Realisasi: {formatCurrency(totalRealisasi)} dari {formatCurrency(totalAnggaran)}</span>
-          <span className="text-sm font-bold text-emerald-600">{Math.round((totalRealisasi / totalAnggaran) * 100)}%</span>
+          <span className="text-sm font-bold text-emerald-600">{persentaseTotal}%</span>
         </div>
       </div>
 
@@ -226,7 +229,7 @@ const Dashboard: React.FC = () => {
               </thead>
               <tbody>
                 {recentTransactions.slice(0, 7).map((trx: any) => (
-                  <tr key={trx.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={trx.key || `${trx.tipe}-${trx.id}`} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-2.5 text-sm">
                       <span className={`inline-flex items-center gap-1 ${trx.tipe === 'penerimaan' ? 'text-emerald-600' : 'text-red-600'}`}>
                         {trx.tipe === 'penerimaan' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
