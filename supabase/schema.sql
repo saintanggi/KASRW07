@@ -633,6 +633,9 @@ SELECT
 
 COMMIT;
 
+-- Paksa Supabase/PostgREST membaca ulang schema dan relasi baru.
+NOTIFY pgrst, 'reload schema';
+
 -- =========================================================
 -- HASIL AKHIR
 -- =========================================================

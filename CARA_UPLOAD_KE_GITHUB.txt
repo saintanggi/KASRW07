@@ -16,4 +16,7 @@ CARA UPLOAD KE GITHUB DAN DEPLOY
 
 6. Redeploy Vercel.
 
+Jika masih muncul pesan "Sebagian data gagal dimuat", jalankan ulang baris ini di Supabase SQL Editor:
+   NOTIFY pgrst, 'reload schema';
+
 JANGAN upload node_modules, dist, atau file .env. ZIP ini sudah tidak menyertakan file-file tersebut.

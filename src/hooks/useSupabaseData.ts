@@ -100,12 +100,13 @@ export function useDashboardData() {
   const refresh = useCallback(async () => {
     setData((prev) => ({ ...prev, loading: true, error: null }));
     try {
-      const [rekeningRes, penerimaanRes, pengeluaranRes, anggaranRes, iuranRes, monthlyViewRes] = await Promise.all([
+      const [rekeningRes, penerimaanRes, pengeluaranRes, anggaranRes, iuranRes, kategoriRes, monthlyViewRes] = await Promise.all([
         supabase.from('rekening').select('*').order('id'),
-        supabase.from('penerimaan').select('*, kategori_transaksi(nama_kategori)').order('tanggal', { ascending: false }),
-        supabase.from('pengeluaran').select('*, kategori_transaksi(nama_kategori)').order('tanggal_pengajuan', { ascending: false }),
-        supabase.from('anggaran').select('*, kategori_transaksi(nama_kategori)').order('tahun', { ascending: false }),
+        supabase.from('penerimaan').select('*').order('tanggal', { ascending: false }),
+        supabase.from('pengeluaran').select('*').order('tanggal_pengajuan', { ascending: false }),
+        supabase.from('anggaran').select('*').order('tahun', { ascending: false }),
         supabase.from('iuran').select('id,status,periode'),
+        supabase.from('kategori_transaksi').select('id,nama_kategori'),
         supabase.from('v_dashboard_monthly').select('*').order('periode'),
       ]);
 
@@ -114,6 +115,7 @@ export function useDashboardData() {
       const pengeluaranRows = pengeluaranRes.data || [];
       const anggaranRowsAll = anggaranRes.data || [];
       const iuranRows = iuranRes.data || [];
+      const kategoriMap = new Map((kategoriRes.data || []).map((row: any) => [Number(row.id), row.nama_kategori]));
 
       const saldoKas = rekeningRows
         .filter((row: any) => row.jenis === 'kas')
@@ -173,7 +175,7 @@ export function useDashboardData() {
         .map((row: any) => ({
           id: row.id,
           kategori_id: row.kategori_id,
-          pos: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+          pos: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
           anggaran: toNumber(row.jumlah_anggaran),
           realisasi: realisasiByCategory.get(Number(row.kategori_id)) ?? toNumber(row.realisasi),
         }));
@@ -185,7 +187,7 @@ export function useDashboardData() {
           nomor: row.nomor,
           tanggal: row.tanggal,
           tipe: 'penerimaan',
-          kategori: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+          kategori: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
           nominal: toNumber(row.nominal),
           sumber: row.sumber,
           status: row.status,
@@ -196,7 +198,7 @@ export function useDashboardData() {
           nomor: row.nomor,
           tanggal: row.tanggal_pembayaran || row.tanggal_pengajuan,
           tipe: 'pengeluaran',
-          kategori: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+          kategori: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
           nominal: toNumber(row.nominal),
           sumber: row.deskripsi,
           status: row.status,
@@ -213,7 +215,7 @@ export function useDashboardData() {
           nomor: row.nomor,
           pengaju: 'Pengurus RW/RT',
           nominal: toNumber(row.nominal),
-          kategori: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+          kategori: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
           tanggal: row.tanggal_pengajuan,
           deskripsi: row.deskripsi,
         }));
@@ -255,7 +257,7 @@ export function useDashboardData() {
         periodeLabel: formatPeriodLabel(currentPeriod()),
         tahunAnggaran: selectedYear,
         loading: false,
-        error: penerimaanRes.error || pengeluaranRes.error || rekeningRes.error ? 'Sebagian data gagal dimuat dari Supabase.' : null,
+        error: [rekeningRes, penerimaanRes, pengeluaranRes, anggaranRes, iuranRes, kategoriRes].filter((res: any) => res.error).map((res: any) => res.error.message).join(' | ') || null,
       });
     } catch (error) {
       setData((prev) => ({ ...prev, loading: false, error: normalizeError(error) }));
@@ -323,10 +325,13 @@ function useTransactionData(type: TransactionType) {
     const orderColumn = type === 'penerimaan' ? 'tanggal' : 'tanggal_pengajuan';
 
     const [trxRes, catRes, rekRes] = await Promise.all([
-      supabase.from(table).select('*, kategori_transaksi(nama_kategori), rekening(nama_rekening)').order(orderColumn, { ascending: false }),
+      supabase.from(table).select('*').order(orderColumn, { ascending: false }),
       supabase.from('kategori_transaksi').select('*').order('nama_kategori'),
       supabase.from('rekening').select('*').order('id'),
     ]);
+
+    const kategoriMap = new Map((catRes.data || []).map((row: any) => [Number(row.id), row.nama_kategori]));
+    const rekeningMap = new Map((rekRes.data || []).map((row: any) => [Number(row.id), row.nama_rekening]));
 
     if (trxRes.error) {
       setError(trxRes.error.message);
@@ -339,9 +344,9 @@ function useTransactionData(type: TransactionType) {
         tanggal_pembayaran: row.tanggal_pembayaran,
         tipe: type,
         kategori_id: row.kategori_id,
-        kategori: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+        kategori: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
         rekening_id: row.rekening_id,
-        rekening: row.rekening?.nama_rekening || '-',
+        rekening: rekeningMap.get(Number(row.rekening_id)) || '-',
         nominal: toNumber(row.nominal),
         sumber: type === 'penerimaan' ? row.sumber : row.deskripsi,
         metode_bayar: row.metode_bayar,
@@ -491,9 +496,10 @@ export function useAnggaran() {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [anggaranRes, pengeluaranRes] = await Promise.all([
-      supabase.from('anggaran').select('*, kategori_transaksi(nama_kategori)').order('tahun', { ascending: false }),
+    const [anggaranRes, pengeluaranRes, kategoriRes] = await Promise.all([
+      supabase.from('anggaran').select('*').order('tahun', { ascending: false }),
       supabase.from('pengeluaran').select('kategori_id, nominal, status, tanggal_pembayaran, tanggal_pengajuan'),
+      supabase.from('kategori_transaksi').select('id,nama_kategori'),
     ]);
 
     if (anggaranRes.error) {
@@ -504,6 +510,7 @@ export function useAnggaran() {
     }
 
     const rows = anggaranRes.data || [];
+    const kategoriMap = new Map((kategoriRes.data || []).map((row: any) => [Number(row.id), row.nama_kategori]));
     const years = Array.from(new Set(rows.map((row: any) => Number(row.tahun)).filter(Boolean))).sort((a, b) => b - a);
     const selectedYear = years.includes(currentYear()) ? currentYear() : (years[0] || currentYear());
     setTahun(selectedYear);
@@ -518,7 +525,7 @@ export function useAnggaran() {
 
     setData(rows.filter((row: any) => Number(row.tahun) === selectedYear).map((row: any) => ({
       id: row.id,
-      pos: row.kategori_transaksi?.nama_kategori || 'Tanpa Kategori',
+      pos: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
       kategori_id: row.kategori_id,
       anggaran: toNumber(row.jumlah_anggaran),
       realisasi: realisasiByCategory.get(Number(row.kategori_id)) ?? toNumber(row.realisasi),
@@ -543,21 +550,24 @@ export function useIuran() {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data: rows, error: queryError } = await supabase
-      .from('iuran')
-      .select('*, warga(id, nama, nik, rt_id, rts(nomor_rt))')
-      .order('periode', { ascending: false })
-      .order('id', { ascending: true });
+    const [iuranRes, wargaRes, rtsRes] = await Promise.all([
+      supabase.from('iuran').select('*').order('periode', { ascending: false }).order('id', { ascending: true }),
+      supabase.from('warga').select('id,nama,nik,rt_id'),
+      supabase.from('rts').select('id,nomor_rt'),
+    ]);
 
-    if (queryError) {
-      setError(queryError.message);
+    if (iuranRes.error) {
+      setError(iuranRes.error.message);
       setData([]);
       setLoading(false);
       return;
     }
 
+    const wargaMap = new Map((wargaRes.data || []).map((row: any) => [Number(row.id), row]));
+    const rtMap = new Map((rtsRes.data || []).map((row: any) => [Number(row.id), row.nomor_rt]));
+
     const deduped = new Map<string, any>();
-    (rows || []).forEach((row: any) => {
+    (iuranRes.data || []).forEach((row: any) => {
       const key = `${row.warga_id || row.id}-${row.periode}`;
       const current = deduped.get(key);
       const rank = row.status === 'lunas' ? 2 : row.status === 'terlambat' ? 1 : 0;
@@ -567,22 +577,27 @@ export function useIuran() {
       }
     });
 
-    setData(Array.from(deduped.values()).map((row: any) => ({
-      id: row.id,
-      warga_id: row.warga_id,
-      nama: row.warga?.nama || 'Tanpa Nama',
-      rt: row.warga?.rts?.nomor_rt || '-',
-      rt_id: row.warga?.rt_id,
-      nik: row.warga?.nik || '-',
-      tagihan: toNumber(row.jumlah_tagihan),
-      jumlah_bayar: toNumber(row.jumlah_bayar),
-      status: row.status,
-      periode: row.periode,
-      periodeLabel: formatPeriodLabel(row.periode),
-      tanggal_jatuh_tempo: row.tanggal_jatuh_tempo,
-      tanggal_bayar: row.tanggal_bayar,
-      metode_bayar: row.metode_bayar,
-    })));
+    setData(Array.from(deduped.values()).map((row: any) => {
+      const warga = wargaMap.get(Number(row.warga_id));
+      return {
+        id: row.id,
+        warga_id: row.warga_id,
+        nama: warga?.nama || 'Tanpa Nama',
+        rt: rtMap.get(Number(warga?.rt_id)) || '-',
+        rt_id: warga?.rt_id,
+        nik: warga?.nik || '-',
+        tagihan: toNumber(row.jumlah_tagihan),
+        jumlah_bayar: toNumber(row.jumlah_bayar),
+        status: row.status,
+        periode: row.periode,
+        periodeLabel: formatPeriodLabel(row.periode),
+        tanggal_jatuh_tempo: row.tanggal_jatuh_tempo,
+        tanggal_bayar: row.tanggal_bayar,
+        metode_bayar: row.metode_bayar,
+      };
+    }));
+    const warnings = [wargaRes.error?.message, rtsRes.error?.message].filter(Boolean).join(' | ');
+    setError(warnings || null);
     setLoading(false);
   }, []);
 
@@ -751,24 +766,29 @@ export function usePengguna() {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data: rows, error: queryError } = await supabase
-      .from('users')
-      .select('*, roles(nama_role), rts(nomor_rt)')
-      .order('nama');
+    const [usersRes, rolesRes, rtsRes] = await Promise.all([
+      supabase.from('users').select('*').order('nama'),
+      supabase.from('roles').select('id,nama_role'),
+      supabase.from('rts').select('id,nomor_rt'),
+    ]);
 
-    if (queryError) {
-      setError(queryError.message);
+    if (usersRes.error) {
+      setError(usersRes.error.message);
       setData([]);
     } else {
-      setData((rows || []).map((row: any) => ({
+      const roleMap = new Map((rolesRes.data || []).map((row: any) => [Number(row.id), row.nama_role]));
+      const rtMap = new Map((rtsRes.data || []).map((row: any) => [Number(row.id), row.nomor_rt]));
+      setData((usersRes.data || []).map((row: any) => ({
         id: row.id,
         nama: row.nama,
         email: row.email,
-        role: row.roles?.nama_role || 'Tanpa Role',
-        rt: row.rts?.nomor_rt || '-',
+        role: roleMap.get(Number(row.role_id)) || 'Tanpa Role',
+        rt: rtMap.get(Number(row.rt_id)) || '-',
         status: row.is_active ? 'aktif' : 'nonaktif',
         lastLogin: row.last_login ? new Date(row.last_login).toLocaleString('id-ID') : '-',
       })));
+      const warnings = [rolesRes.error?.message, rtsRes.error?.message].filter(Boolean).join(' | ');
+      setError(warnings || null);
     }
     setLoading(false);
   }, []);
