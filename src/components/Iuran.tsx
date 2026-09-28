@@ -1,28 +1,40 @@
 import React, { useState } from 'react';
-import { Users, CheckCircle, XCircle, Bell, Download, Plus, Search, Filter } from 'lucide-react';
-import { wargaData } from '../data/mockData';
+import { Users, CheckCircle, XCircle, Bell, Download, Plus, Search, Filter, Database, Loader2 } from 'lucide-react';
+import { useIuran } from '../hooks/useSupabaseData';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 };
 
 const Iuran: React.FC = () => {
+  const { data: wargaData, loading } = useIuran();
   const [filterRT, setFilterRT] = useState('semua');
   const [filterStatus, setFilterStatus] = useState('semua');
   const [searchTerm, setSearchTerm] = useState('');
 
   const totalWarga = wargaData.length;
-  const totalLunas = wargaData.filter(w => w.status === 'lunas').length;
-  const totalBelum = wargaData.filter(w => w.status === 'belum').length;
-  const totalTagihan = wargaData.reduce((sum, w) => sum + w.tagihan, 0);
-  const totalTerkumpul = wargaData.filter(w => w.status === 'lunas').reduce((sum, w) => sum + w.tagihan, 0);
+  const totalLunas = wargaData.filter((w: any) => w.status === 'lunas').length;
+  const totalBelum = wargaData.filter((w: any) => w.status === 'belum').length;
+  const totalTagihan = wargaData.reduce((sum: number, w: any) => sum + w.tagihan, 0);
+  const totalTerkumpul = wargaData.filter((w: any) => w.status === 'lunas').reduce((sum: number, w: any) => sum + w.tagihan, 0);
 
-  const filteredWarga = wargaData.filter((w) => {
+  const filteredWarga = wargaData.filter((w: any) => {
     const matchesRT = filterRT === 'semua' || w.rt === filterRT;
     const matchesStatus = filterStatus === 'semua' || w.status === filterStatus;
     const matchesSearch = w.nama.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesRT && matchesStatus && matchesSearch;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Memuat data iuran warga...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -127,7 +139,7 @@ const Iuran: React.FC = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-indigo-600">{warga.nama.split(' ').map(n => n[0]).join('').slice(0, 2)}</span>
+                        <span className="text-xs font-medium text-indigo-600">{warga.nama.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</span>
                       </div>
                       <span className="text-sm font-medium text-gray-800">{warga.nama}</span>
                     </div>

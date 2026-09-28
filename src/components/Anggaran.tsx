@@ -1,16 +1,28 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Wallet, TrendingUp, AlertTriangle, Plus, Download } from 'lucide-react';
-import { anggaranData } from '../data/mockData';
+import { Wallet, TrendingUp, AlertTriangle, Plus, Download, Database, Loader2 } from 'lucide-react';
+import { useAnggaran } from '../hooks/useSupabaseData';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 };
 
 const Anggaran: React.FC = () => {
-  const totalAnggaran = anggaranData.reduce((sum, item) => sum + item.anggaran, 0);
-  const totalRealisasi = anggaranData.reduce((sum, item) => sum + item.realisasi, 0);
+  const { data: anggaranData, loading } = useAnggaran();
+  const totalAnggaran = anggaranData.reduce((sum: number, item: any) => sum + item.anggaran, 0);
+  const totalRealisasi = anggaranData.reduce((sum: number, item: any) => sum + item.realisasi, 0);
   const sisaAnggaran = totalAnggaran - totalRealisasi;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-purple-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Memuat data anggaran...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

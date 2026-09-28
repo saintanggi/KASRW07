@@ -1,13 +1,25 @@
 import React from 'react';
-import { ClipboardList, Package, Plus, Download, Edit, Trash2 } from 'lucide-react';
-import { asetData } from '../data/mockData';
+import { ClipboardList, Package, Plus, Download, Edit, Trash2, Database, Loader2 } from 'lucide-react';
+import { useAset } from '../hooks/useSupabaseData';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 };
 
 const Aset: React.FC = () => {
-  const totalNilai = asetData.reduce((sum, a) => sum + a.nilai, 0);
+  const { data: asetData, loading } = useAset();
+  const totalNilai = asetData.reduce((sum: number, a: any) => sum + a.nilai, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-amber-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Memuat data inventaris...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

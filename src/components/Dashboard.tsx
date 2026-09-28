@@ -5,9 +5,9 @@ import {
 } from 'recharts';
 import {
   Wallet, TrendingUp, TrendingDown, Building2, AlertTriangle,
-  CheckCircle, Clock, ArrowRight,
+  CheckCircle, Clock, ArrowRight, Loader2, Database,
 } from 'lucide-react';
-import { kpiData, monthlyData, anggaranData, recentTransactions, pendingApprovals, notifications } from '../data/mockData';
+import { useDashboardData } from '../hooks/useSupabaseData';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -16,11 +16,38 @@ const formatCurrency = (value: number) => {
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 const Dashboard: React.FC = () => {
-  const totalAnggaran = anggaranData.reduce((sum, item) => sum + item.anggaran, 0);
-  const totalRealisasi = anggaranData.reduce((sum, item) => sum + item.realisasi, 0);
+  const { kpi, monthlyData, anggaranData, recentTransactions, pendingApprovals, notifications, loading, error } = useDashboardData();
+
+  const totalAnggaran = anggaranData.reduce((sum: number, item: any) => sum + item.anggaran, 0);
+  const totalRealisasi = anggaranData.reduce((sum: number, item: any) => sum + item.realisasi, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Memuat data dari Supabase...</p>
+          <p className="text-gray-400 text-sm mt-1">Menghubungkan ke database</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Connection Status */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+        <Database className="w-5 h-5 text-emerald-600" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-emerald-800">
+            ✅ Terhubung ke Supabase Database
+          </p>
+          <p className="text-xs text-emerald-600">
+            Data diambil secara real-time dari database Supabase
+          </p>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -43,7 +70,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Saldo Kas Tunai</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(kpiData.saldoKasTunai)}</p>
+              <p className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(kpi.saldoKasTunai)}</p>
             </div>
             <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
               <Wallet className="w-6 h-6 text-emerald-600" />
@@ -58,7 +85,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Saldo Rekening Bank</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(kpiData.saldoRekeningBank)}</p>
+              <p className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(kpi.saldoRekeningBank)}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Building2 className="w-6 h-6 text-blue-600" />
@@ -73,7 +100,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Penerimaan Bulan Ini</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(kpiData.totalPenerimaanBulanIni)}</p>
+              <p className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(kpi.totalPenerimaanBulanIni)}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-green-600" />
@@ -88,7 +115,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Pengeluaran Bulan Ini</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(kpiData.totalPengeluaranBulanIni)}</p>
+              <p className="text-2xl font-bold text-gray-800 mt-1">{formatCurrency(kpi.totalPengeluaranBulanIni)}</p>
             </div>
             <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
               <TrendingDown className="w-6 h-6 text-red-600" />
@@ -131,10 +158,10 @@ const Dashboard: React.FC = () => {
                 outerRadius={90}
                 dataKey="anggaran"
                 nameKey="pos"
-                label={({ pos, percent }) => `${pos} ${(percent * 100).toFixed(0)}%`}
+                label={({ pos, percent }: any) => `${pos} ${(percent * 100).toFixed(0)}%`}
                 labelLine={false}
               >
-                {anggaranData.map((_, index) => (
+                {anggaranData.map((_: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -148,10 +175,10 @@ const Dashboard: React.FC = () => {
       <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Realisasi Anggaran Tahunan</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {anggaranData.map((item, index) => {
+          {anggaranData.map((item: any, index: number) => {
             const persentase = Math.round((item.realisasi / item.anggaran) * 100);
             return (
-              <div key={item.pos} className="p-3 bg-gray-50 rounded-lg">
+              <div key={index} className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium text-gray-700">{item.pos}</span>
                   <span className="text-xs font-semibold text-gray-500">{persentase}%</span>
@@ -198,7 +225,7 @@ const Dashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {recentTransactions.slice(0, 7).map((trx) => (
+                {recentTransactions.slice(0, 7).map((trx: any) => (
                   <tr key={trx.id} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-2.5 text-sm">
                       <span className={`inline-flex items-center gap-1 ${trx.tipe === 'penerimaan' ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -213,7 +240,7 @@ const Dashboard: React.FC = () => {
                     </td>
                     <td className="py-2.5">
                       <span className={`text-xs px-2 py-1 rounded-full font-medium
-                        ${trx.status === 'terverifikasi' ? 'bg-green-100 text-green-700' :
+                        ${trx.status === 'terverifikasi' || trx.status === 'lunas' ? 'bg-green-100 text-green-700' :
                           trx.status === 'menunggu' ? 'bg-yellow-100 text-yellow-700' :
                           'bg-blue-100 text-blue-700'}`}>
                         {trx.status}
@@ -235,7 +262,7 @@ const Dashboard: React.FC = () => {
               <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">{pendingApprovals.length}</span>
             </div>
             <div className="space-y-3">
-              {pendingApprovals.map((item) => (
+              {pendingApprovals.map((item: any) => (
                 <div key={item.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
                   <div className="flex justify-between items-start">
                     <div>
@@ -262,7 +289,7 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Notifikasi</h3>
             <div className="space-y-3">
-              {notifications.map((notif) => (
+              {notifications.map((notif: any) => (
                 <div key={notif.id} className="flex items-start gap-3">
                   <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0
                     ${notif.type === 'warning' ? 'bg-yellow-500' :

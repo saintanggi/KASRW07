@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Filter, Download, Plus, Eye, Edit, Trash2, ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react';
-import { recentTransactions } from '../data/mockData';
+import { Search, Filter, Download, Plus, Eye, Edit, Trash2, ArrowDownCircle, ArrowUpCircle, X, Database, Loader2 } from 'lucide-react';
+import { usePenerimaan, usePengeluaran } from '../hooks/useSupabaseData';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -11,24 +11,49 @@ interface TransactionsProps {
 }
 
 const Transactions: React.FC<TransactionsProps> = ({ type }) => {
+  const { data: penerimaanData, loading: loadingPenerimaan } = usePenerimaan();
+  const { data: pengeluaranData, loading: loadingPengeluaran } = usePengeluaran();
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('semua');
 
-  const filteredTransactions = recentTransactions.filter((trx) => {
-    const matchesType = trx.tipe === type;
+  const allTransactions = type === 'penerimaan' ? penerimaanData : pengeluaranData;
+  const loading = type === 'penerimaan' ? loadingPenerimaan : loadingPengeluaran;
+
+  const filteredTransactions = allTransactions.filter((trx: any) => {
     const matchesSearch = trx.nomor.toLowerCase().includes(searchTerm.toLowerCase()) ||
       trx.kategori.toLowerCase().includes(searchTerm.toLowerCase()) ||
       trx.sumber.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'semua' || trx.status === filterStatus;
-    return matchesType && matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   const title = type === 'penerimaan' ? 'Penerimaan' : 'Pengeluaran';
   const Icon = type === 'penerimaan' ? ArrowDownCircle : ArrowUpCircle;
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Memuat data {title.toLowerCase()}...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Connection Status */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+        <Database className="w-5 h-5 text-emerald-600" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-emerald-800">
+            ✅ Data dari Supabase ({filteredTransactions.length} transaksi)
+          </p>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

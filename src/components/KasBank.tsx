@@ -1,13 +1,26 @@
 import React from 'react';
-import { Building2, Wallet, ArrowDownCircle, ArrowUpCircle, RefreshCw, Download, Plus } from 'lucide-react';
-import { rekeningData, recentTransactions } from '../data/mockData';
+import { Building2, Wallet, ArrowDownCircle, ArrowUpCircle, RefreshCw, Download, Plus, Database, Loader2 } from 'lucide-react';
+import { useRekening } from '../hooks/useSupabaseData';
+import { recentTransactions } from '../data/mockData';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 };
 
 const KasBank: React.FC = () => {
-  const totalSaldo = rekeningData.reduce((sum, r) => sum + r.saldo, 0);
+  const { data: rekeningData, loading } = useRekening();
+  const totalSaldo = rekeningData.reduce((sum: number, r: any) => sum + r.saldo, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Memuat data kas & bank...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
