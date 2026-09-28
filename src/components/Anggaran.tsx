@@ -1,6 +1,6 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Wallet, TrendingUp, AlertTriangle, Plus, Download, Database, Loader2 } from 'lucide-react';
+import { Wallet, Plus, Download, Database, Loader2 } from 'lucide-react';
 import { useAnggaran } from '../hooks/useSupabaseData';
 
 const formatCurrency = (value: number) => {
@@ -26,6 +26,12 @@ const Anggaran: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Connection Status */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+        <Database className="w-5 h-5 text-emerald-600" />
+        <p className="text-sm font-medium text-emerald-800">✅ Data anggaran dari Supabase</p>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -52,7 +58,6 @@ const Anggaran: React.FC = () => {
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Total Anggaran</p>
           <p className="text-xl font-bold text-gray-800 mt-1">{formatCurrency(totalAnggaran)}</p>
-          <p className="text-xs text-gray-400 mt-1">Tahun 2024</p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Total Realisasi</p>
@@ -62,15 +67,10 @@ const Anggaran: React.FC = () => {
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Sisa Anggaran</p>
           <p className="text-xl font-bold text-blue-600 mt-1">{formatCurrency(sisaAnggaran)}</p>
-          <p className="text-xs text-blue-500 mt-1">{Math.round((sisaAnggaran / totalAnggaran) * 100)}% tersisa</p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Status</p>
-          <div className="flex items-center gap-2 mt-1">
-            <AlertTriangle className="w-5 h-5 text-yellow-500" />
-            <p className="text-lg font-bold text-yellow-600">On Track</p>
-          </div>
-          <p className="text-xs text-gray-400 mt-1">Realisasi sesuai target</p>
+          <p className="text-lg font-bold text-yellow-600 mt-1">On Track</p>
         </div>
       </div>
 
@@ -108,14 +108,12 @@ const Anggaran: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {anggaranData.map((item) => {
+              {anggaranData.map((item: any) => {
                 const sisa = item.anggaran - item.realisasi;
                 const persentase = Math.round((item.realisasi / item.anggaran) * 100);
                 return (
                   <tr key={item.pos} className="border-t border-gray-50 hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <span className="text-sm font-medium text-gray-800">{item.pos}</span>
-                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-800">{item.pos}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(item.anggaran)}</td>
                     <td className="px-4 py-3 text-sm text-emerald-600 font-medium">{formatCurrency(item.realisasi)}</td>
                     <td className="px-4 py-3 text-sm text-blue-600">{formatCurrency(sisa)}</td>
@@ -136,16 +134,6 @@ const Anggaran: React.FC = () => {
                 );
               })}
             </tbody>
-            <tfoot className="bg-gray-50 font-semibold">
-              <tr className="border-t border-gray-200">
-                <td className="px-4 py-3 text-sm text-gray-800">TOTAL</td>
-                <td className="px-4 py-3 text-sm text-gray-800">{formatCurrency(totalAnggaran)}</td>
-                <td className="px-4 py-3 text-sm text-emerald-600">{formatCurrency(totalRealisasi)}</td>
-                <td className="px-4 py-3 text-sm text-blue-600">{formatCurrency(sisaAnggaran)}</td>
-                <td className="px-4 py-3 text-sm text-gray-800">{Math.round((totalRealisasi / totalAnggaran) * 100)}%</td>
-                <td className="px-4 py-3"></td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>

@@ -23,6 +23,12 @@ const Aset: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Connection Status */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+        <Database className="w-5 h-5 text-emerald-600" />
+        <p className="text-sm font-medium text-emerald-800">✅ Data aset dari Supabase</p>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -47,37 +53,16 @@ const Aset: React.FC = () => {
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total Aset</p>
-              <p className="text-xl font-bold text-gray-800">{asetData.length} item</p>
-            </div>
-          </div>
+          <p className="text-sm text-gray-500">Total Aset</p>
+          <p className="text-xl font-bold text-gray-800">{asetData.length} item</p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Nilai Total Aset</p>
-              <p className="text-xl font-bold text-gray-800">{formatCurrency(totalNilai)}</p>
-            </div>
-          </div>
+          <p className="text-sm text-gray-500">Nilai Total Aset</p>
+          <p className="text-xl font-bold text-gray-800">{formatCurrency(totalNilai)}</p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Kondisi Baik</p>
-              <p className="text-xl font-bold text-gray-800">{asetData.filter(a => a.kondisi === 'Baik').length} item</p>
-            </div>
-          </div>
+          <p className="text-sm text-gray-500">Kondisi Baik</p>
+          <p className="text-xl font-bold text-gray-800">{asetData.filter((a: any) => a.kondisi === 'Baik').length} item</p>
         </div>
       </div>
 
@@ -97,11 +82,9 @@ const Aset: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {asetData.map((aset) => (
-                <tr key={aset.id} className="border-t border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <span className="text-sm font-mono font-medium text-gray-800">{aset.kode}</span>
-                  </td>
+              {asetData.map((aset: any) => (
+                <tr key={aset.kode} className="border-t border-gray-50 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-mono font-medium text-gray-800">{aset.kode}</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-800">{aset.nama}</td>
                   <td className="px-4 py-3">
                     <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">{aset.kategori}</span>
@@ -118,10 +101,10 @@ const Aset: React.FC = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <button className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                      <button className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                      <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -129,13 +112,6 @@ const Aset: React.FC = () => {
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-gray-50 font-semibold">
-              <tr className="border-t border-gray-200">
-                <td className="px-4 py-3 text-sm text-gray-800" colSpan={3}>TOTAL</td>
-                <td className="px-4 py-3 text-sm font-bold text-gray-800">{formatCurrency(totalNilai)}</td>
-                <td className="px-4 py-3" colSpan={3}></td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>

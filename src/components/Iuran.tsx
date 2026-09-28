@@ -38,6 +38,12 @@ const Iuran: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Connection Status */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+        <Database className="w-5 h-5 text-emerald-600" />
+        <p className="text-sm font-medium text-emerald-800">✅ Data iuran dari Supabase</p>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -50,9 +56,6 @@ const Iuran: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-            <Bell className="w-4 h-4" /> Kirim Pengingat
-          </button>
           <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
             <Download className="w-4 h-4" /> Ekspor
           </button>
@@ -67,22 +70,18 @@ const Iuran: React.FC = () => {
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Total Warga</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">{totalWarga}</p>
-          <p className="text-xs text-gray-400 mt-1">Warga terdaftar</p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Sudah Bayar</p>
           <p className="text-2xl font-bold text-emerald-600 mt-1">{totalLunas}</p>
-          <p className="text-xs text-emerald-500 mt-1">{Math.round((totalLunas / totalWarga) * 100)}% dari total</p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Belum Bayar</p>
           <p className="text-2xl font-bold text-red-600 mt-1">{totalBelum}</p>
-          <p className="text-xs text-red-500 mt-1">{Math.round((totalBelum / totalWarga) * 100)}% dari total</p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Terkumpul</p>
           <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(totalTerkumpul)}</p>
-          <p className="text-xs text-blue-500 mt-1">dari {formatCurrency(totalTagihan)}</p>
         </div>
       </div>
 
@@ -99,18 +98,13 @@ const Iuran: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select value={filterRT} onChange={(e) => setFilterRT(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="semua">Semua RT</option>
-              <option value="RT 01">RT 01</option>
-              <option value="RT 02">RT 02</option>
-              <option value="RT 03">RT 03</option>
-              <option value="RT 04">RT 04</option>
-              <option value="RT 05">RT 05</option>
-            </select>
-          </div>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <select value={filterRT} onChange={(e) => setFilterRT(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+            <option value="semua">Semua RT</option>
+            <option value="RT 01">RT 01</option>
+            <option value="RT 02">RT 02</option>
+            <option value="RT 03">RT 03</option>
+          </select>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
             <option value="semua">Semua Status</option>
             <option value="lunas">Lunas</option>
             <option value="belum">Belum Bayar</option>
@@ -134,16 +128,9 @@ const Iuran: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredWarga.map((warga) => (
-                <tr key={warga.id} className="border-t border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-indigo-600">{warga.nama.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</span>
-                      </div>
-                      <span className="text-sm font-medium text-gray-800">{warga.nama}</span>
-                    </div>
-                  </td>
+              {filteredWarga.map((warga: any) => (
+                <tr key={warga.id} className="border-t border-gray-50 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-800">{warga.nama}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{warga.rt}</td>
                   <td className="px-4 py-3 text-sm text-gray-500 font-mono">{warga.nik}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{warga.periode}</td>
@@ -160,29 +147,16 @@ const Iuran: React.FC = () => {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {warga.status === 'belum' && (
-                        <button className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700">
-                          Catat Bayar
-                        </button>
-                      )}
-                      <button className="text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-200">
-                        Detail
+                    {warga.status === 'belum' && (
+                      <button className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700">
+                        Catat Bayar
                       </button>
-                    </div>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-          <p className="text-sm text-gray-500">Menampilkan {filteredWarga.length} warga</p>
-          <div className="flex items-center gap-1">
-            <button className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-100">Sebelumnya</button>
-            <button className="px-3 py-1 text-sm bg-indigo-600 text-white rounded">1</button>
-            <button className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-100">Berikutnya</button>
-          </div>
         </div>
       </div>
     </div>

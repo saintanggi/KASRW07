@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import {
-  Wallet, TrendingUp, TrendingDown, Building2, AlertTriangle,
+  Wallet, TrendingUp, TrendingDown, Building2,
   CheckCircle, Clock, ArrowRight, Loader2, Database,
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useSupabaseData';
@@ -16,7 +16,7 @@ const formatCurrency = (value: number) => {
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 const Dashboard: React.FC = () => {
-  const { kpi, monthlyData, anggaranData, recentTransactions, pendingApprovals, notifications, loading, error } = useDashboardData();
+  const { kpi, monthlyData, anggaranData, recentTransactions, pendingApprovals, notifications, loading } = useDashboardData();
 
   const totalAnggaran = anggaranData.reduce((sum: number, item: any) => sum + item.anggaran, 0);
   const totalRealisasi = anggaranData.reduce((sum: number, item: any) => sum + item.realisasi, 0);

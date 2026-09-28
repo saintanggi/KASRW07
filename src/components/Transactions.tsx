@@ -104,20 +104,6 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
               <option value="disetujui">Disetujui</option>
             </select>
           </div>
-          <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            <option>Semua Kategori</option>
-            <option>Iuran Warga</option>
-            <option>Donasi</option>
-            <option>Kebersihan</option>
-            <option>Keamanan</option>
-            <option>Infrastruktur</option>
-            <option>Sosial</option>
-          </select>
-          <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            <option>Desember 2024</option>
-            <option>November 2024</option>
-            <option>Oktober 2024</option>
-          </select>
         </div>
       </div>
 
@@ -137,7 +123,7 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.map((trx) => (
+              {filteredTransactions.map((trx: any) => (
                 <tr key={trx.id} className="border-t border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <span className="text-sm font-medium text-gray-800">{trx.nomor}</span>
@@ -178,12 +164,6 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
         </div>
         <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
           <p className="text-sm text-gray-500">Menampilkan {filteredTransactions.length} transaksi</p>
-          <div className="flex items-center gap-1">
-            <button className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-100">Sebelumnya</button>
-            <button className="px-3 py-1 text-sm bg-emerald-600 text-white rounded">1</button>
-            <button className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-100">2</button>
-            <button className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-100">Berikutnya</button>
-          </div>
         </div>
       </div>
 
@@ -214,53 +194,11 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
                   <option>Donasi</option>
                   <option>Kebersihan</option>
                   <option>Keamanan</option>
-                  <option>Infrastruktur</option>
-                  <option>Sosial</option>
-                  <option>Operasional</option>
-                  <option>Pendapatan Lain</option>
                 </select>
               </div>
-              {type === 'penerimaan' ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sumber</label>
-                  <input type="text" placeholder="Contoh: RT 01, Bpk. Ahmad, dll" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
-                  <textarea placeholder="Deskripsi pengeluaran..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" rows={3}></textarea>
-                </div>
-              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nominal (Rp)</label>
                 <input type="number" placeholder="0" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Metode Pembayaran</label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                  <option>Tunai</option>
-                  <option>Transfer Bank</option>
-                  <option>E-Wallet</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rekening</label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                  <option>Kas Tunai RW 05</option>
-                  <option>Bank BSI - RW 05</option>
-                  <option>Bank Mandiri - RW 05</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bukti Lampiran</label>
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center">
-                  <p className="text-sm text-gray-500">Drag & drop file atau klik untuk upload</p>
-                  <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG (maks 5MB)</p>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
-                <textarea placeholder="Keterangan tambahan..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" rows={2}></textarea>
               </div>
             </div>
             <div className="p-6 border-t border-gray-100 flex justify-end gap-3">
