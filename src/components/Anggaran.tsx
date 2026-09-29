@@ -2,13 +2,19 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Wallet, Plus, Download, Database, Loader2 } from 'lucide-react';
 import { useAnggaran } from '../hooks/useSupabaseData';
+import type { Permissions } from '../lib/permissions';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 };
 
-const Anggaran: React.FC = () => {
+interface AnggaranProps {
+  permissions?: Permissions;
+}
+
+const Anggaran: React.FC<AnggaranProps> = ({ permissions }) => {
   const { data: anggaranData, loading, error, tahun, refresh } = useAnggaran();
+  const canManage = Boolean(permissions?.canManageAnggaran);
   const totalAnggaran = anggaranData.reduce((sum: number, item: any) => sum + item.anggaran, 0);
   const totalRealisasi = anggaranData.reduce((sum: number, item: any) => sum + item.realisasi, 0);
   const sisaAnggaran = totalAnggaran - totalRealisasi;
@@ -52,9 +58,11 @@ const Anggaran: React.FC = () => {
           <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
             <Download className="w-4 h-4" /> Ekspor
           </button>
-          <button className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Tambah Anggaran
-          </button>
+          {canManage && (
+            <button className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-2">
+              <Plus className="w-4 h-4" /> Tambah Anggaran
+            </button>
+          )}
         </div>
       </div>
 

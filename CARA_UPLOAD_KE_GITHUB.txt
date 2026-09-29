@@ -1,31 +1,59 @@
-CARA UPLOAD KE GITHUB DAN DEPLOY - RW 07
+CARA UPLOAD KE GITHUB DAN DEPLOY - RW 07 STAGE 5
 
+Update Stage 5 - Laporan PDF/Excel Siap Cetak:
+- Menu Laporan sekarang bisa export PDF.
+- Bisa export Excel .xlsx.
+- Bisa export CSV.
+- Bisa Cetak / Save as PDF dengan tampilan print-friendly.
+- Preview tabel laporan di aplikasi.
+- Filter laporan: bulanan, tahunan, semua periode.
+- Filter RT untuk data yang memiliki RT, terutama rekap iuran.
+- Ringkasan total otomatis mengikuti jenis laporan dan filter.
+
+Jenis laporan tersedia:
+1. Laporan Arus Kas
+2. Buku Kas Umum
+3. Realisasi Anggaran
+4. Laporan Penerimaan
+5. Laporan Pengeluaran
+6. Rekap Iuran Warga
+7. Saldo Kas & Bank
+8. Audit Trail
+
+Cara deploy:
 1. Extract ZIP ini.
 2. Upload semua isi folder KASRW07 ke repo GitHub Anda.
-3. Jika memakai Git command:
+3. Git command jika perlu:
    git add .
-   git commit -m "fix: notifikasi dan badge dummy rw07"
+   git commit -m "feat: stage 5 laporan pdf excel siap cetak"
    git push origin main
+4. Redeploy Vercel.
 
-4. Jika database belum dibuat, jalankan di Supabase SQL Editor:
-   supabase/RESET_DATABASE_RW07.sql
+Database:
+- Tidak perlu SQL baru untuk Stage 5 jika database sudah memakai schema yang ada.
+- Laporan memakai tabel/view:
+  v_laporan_arus_kas, penerimaan, pengeluaran, anggaran, iuran, warga, rts,
+  rekening, kategori_transaksi, users, audit_logs.
+- Jika Audit Trail masih kosong, itu normal sampai Stage 6 audit otomatis diterapkan.
 
-5. Untuk mengosongkan data dummy dan mengaktifkan login/RLS, jalankan:
-   supabase/RESET_EMPTY_LOGIN_RW07.sql
+Dependency baru:
+- jspdf
+- jspdf-autotable
+- write-excel-file
 
-6. Buat akun pengurus di Supabase:
-   Authentication > Users > Add user
+Validasi yang sudah dilakukan:
+- npm run typecheck: OK
+- npm run build: OK
+- npm audit --omit=dev: 0 vulnerabilities
 
-7. Di Vercel, isi Environment Variables:
-   VITE_SUPABASE_URL=https://PROJECT-REF.supabase.co
-   VITE_SUPABASE_ANON_KEY=ANON_KEY_ANDA
+Catatan warning:
+- Build masih memberi warning chunk Vite besar karena library PDF/Excel. Ini tidak menghalangi deploy.
+- Di lokal Node v20 bisa muncul EBADENGINE saat npm install/ci karena project meminta Node >=22. Vercel sebaiknya pakai Node 22.
 
-8. Redeploy Vercel.
+Jangan upload node_modules, dist, atau .env.
 
-Perbaikan tambahan di ZIP ini:
-- Badge angka 3 di menu Pengeluaran sudah dihapus.
-- Badge notifikasi palsu sudah dihapus.
-- Dropdown notifikasi bisa dibuka, ditutup, dan ditandai dibaca.
-- Tombol Notifikasi di sidebar diarahkan ke Audit Trail.
-
-JANGAN upload node_modules, dist, atau file .env. ZIP ini sudah tidak menyertakan file-file tersebut.
+Rekomendasi tahap berikutnya:
+- Stage 6: audit trail otomatis untuk semua aksi penting.
+- Stage 7: RLS produksi per role langsung di Supabase.
+- Stage 8: upload bukti/lampiran transaksi ke Supabase Storage.
+- Stage 9: nomor dokumen dan tanda tangan laporan cetak.

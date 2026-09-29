@@ -396,6 +396,9 @@ function useTransactionData(type: TransactionType) {
         metode_bayar: row.metode_bayar,
         keterangan: row.keterangan,
         status: row.status,
+        approved_by: row.approved_by,
+        approved_at: row.approved_at,
+        catatan_approval: row.catatan_approval,
         raw: row,
       })));
     }
@@ -520,7 +523,73 @@ function useTransactionData(type: TransactionType) {
     }
   }, [refresh, type]);
 
-  return { data, categories, rekening, loading, saving, error, refresh, create, update, remove };
+  const approve = useCallback(async (id: number, note?: string) => {
+    if (type !== 'pengeluaran') return;
+    setSaving(true);
+    setError(null);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const { error: updateError } = await supabase.from('pengeluaran').update({
+        status: 'disetujui',
+        approved_by: authData.user?.id || null,
+        approved_at: new Date().toISOString(),
+        catatan_approval: note || null,
+      }).eq('id', id);
+      if (updateError) throw new Error(updateError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh, type]);
+
+  const reject = useCallback(async (id: number, note?: string) => {
+    if (type !== 'pengeluaran') return;
+    setSaving(true);
+    setError(null);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const { error: updateError } = await supabase.from('pengeluaran').update({
+        status: 'ditolak',
+        approved_by: authData.user?.id || null,
+        approved_at: new Date().toISOString(),
+        catatan_approval: note || 'Ditolak',
+      }).eq('id', id);
+      if (updateError) throw new Error(updateError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh, type]);
+
+  const markPaid = useCallback(async (id: number, paymentDate = todayISO()) => {
+    if (type !== 'pengeluaran') return;
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: updateError } = await supabase.from('pengeluaran').update({
+        status: 'lunas',
+        tanggal_pembayaran: paymentDate,
+      }).eq('id', id);
+      if (updateError) throw new Error(updateError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh, type]);
+
+  return { data, categories, rekening, loading, saving, error, refresh, create, update, remove, approve, reject, markPaid };
 }
 
 export function usePenerimaan() {
@@ -583,6 +652,177 @@ export function useAnggaran() {
   }, [refresh]);
 
   return { data, loading, error, tahun, refresh };
+}
+
+
+export function useWarga() {
+  const [data, setData] = useState<any[]>([]);
+  const [rts, setRts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const [wargaRes, rtsRes] = await Promise.all([
+      supabase.from('warga').select('*').order('nama'),
+      supabase.from('rts').select('*').order('nomor_rt'),
+    ]);
+
+    if (wargaRes.error) {
+      setError(wargaRes.error.message);
+      setData([]);
+      setLoading(false);
+      return;
+    }
+
+    const rtRows = rtsRes.data || [];
+    setRts(rtRows);
+    const rtMap = new Map(rtRows.map((row: any) => [Number(row.id), row.nomor_rt]));
+
+    setData((wargaRes.data || []).map((row: any) => ({
+      id: row.id,
+      rt_id: row.rt_id,
+      rt: rtMap.get(Number(row.rt_id)) || '-',
+      nama: row.nama,
+      nik: row.nik || '',
+      alamat: row.alamat || '',
+      no_hp: row.no_hp || '',
+      email: row.email || '',
+      status: row.status || 'aktif',
+      tanggal_daftar: row.tanggal_daftar,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    })));
+    setError(rtsRes.error?.message || null);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const toPayload = (input: Record<string, any>) => ({
+    rt_id: input.rt_id ? Number(input.rt_id) : null,
+    nama: String(input.nama || '').trim(),
+    nik: input.nik ? String(input.nik).trim() : null,
+    alamat: input.alamat ? String(input.alamat).trim() : null,
+    no_hp: input.no_hp ? String(input.no_hp).trim() : null,
+    email: input.email ? String(input.email).trim() : null,
+    status: input.status || 'aktif',
+    tanggal_daftar: input.tanggal_daftar || todayISO(),
+  });
+
+  const create = useCallback(async (input: Record<string, any>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = toPayload(input);
+      if (!payload.nama) throw new Error('Nama warga wajib diisi.');
+      if (!payload.rt_id) throw new Error('RT wajib dipilih.');
+      const { error: insertError } = await supabase.from('warga').insert(payload);
+      if (insertError) throw new Error(insertError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  const update = useCallback(async (id: number, input: Record<string, any>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = toPayload(input);
+      if (!payload.nama) throw new Error('Nama warga wajib diisi.');
+      if (!payload.rt_id) throw new Error('RT wajib dipilih.');
+      const { error: updateError } = await supabase.from('warga').update(payload).eq('id', id);
+      if (updateError) throw new Error(updateError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  const setStatus = useCallback(async (id: number, status: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: updateError } = await supabase.from('warga').update({ status }).eq('id', id);
+      if (updateError) throw new Error(updateError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  const remove = useCallback(async (id: number) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: deleteError } = await supabase.from('warga').delete().eq('id', id);
+      if (deleteError) throw new Error(deleteError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  const bulkImport = useCallback(async (rows: Record<string, any>[]) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const rtByLabel = new Map(rts.map((rt: any) => [String(rt.nomor_rt).toLowerCase(), Number(rt.id)]));
+      const rtById = new Set(rts.map((rt: any) => Number(rt.id)));
+      const payloads = rows.map((row) => {
+        const rawRt = String(row.rt || row.nomor_rt || row.rt_id || '').trim();
+        const rtNumber = Number(rawRt);
+        const rtId = Number.isFinite(rtNumber) && rtById.has(rtNumber)
+          ? rtNumber
+          : rtByLabel.get(rawRt.toLowerCase());
+        return toPayload({
+          rt_id: rtId,
+          nama: row.nama,
+          nik: row.nik,
+          alamat: row.alamat,
+          no_hp: row.no_hp || row.telepon,
+          email: row.email,
+          status: row.status || 'aktif',
+          tanggal_daftar: row.tanggal_daftar || todayISO(),
+        });
+      }).filter((row) => row.nama && row.rt_id);
+
+      if (payloads.length === 0) throw new Error('Tidak ada data valid untuk diimport. Pastikan kolom nama dan rt terisi.');
+      const { error: upsertError } = await supabase.from('warga').upsert(payloads, { onConflict: 'nik' });
+      if (upsertError) throw new Error(upsertError.message);
+      await refresh();
+      return payloads.length;
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh, rts]);
+
+  return { data, rts, loading, saving, error, refresh, create, update, setStatus, remove, bulkImport };
 }
 
 export function useIuran() {
@@ -916,23 +1156,56 @@ export function useAuditLogs() {
 export function useLaporanData() {
   const dashboard = useDashboardData();
   const [arusKas, setArusKas] = useState<any[]>([]);
+  const [penerimaanReport, setPenerimaanReport] = useState<any[]>([]);
+  const [pengeluaranReport, setPengeluaranReport] = useState<any[]>([]);
+  const [anggaranReport, setAnggaranReport] = useState<any[]>([]);
+  const [iuranReport, setIuranReport] = useState<any[]>([]);
+  const [auditReport, setAuditReport] = useState<any[]>([]);
+  const [rekeningReport, setRekeningReport] = useState<any[]>([]);
   const [loadingArusKas, setLoadingArusKas] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refreshArusKas = useCallback(async () => {
     setLoadingArusKas(true);
     setError(null);
-    const { data: rows, error: queryError } = await supabase
-      .from('v_laporan_arus_kas')
-      .select('*')
-      .order('tanggal', { ascending: false });
 
-    if (queryError) {
-      setError(queryError.message);
-      setArusKas([]);
-    } else {
-      setArusKas((rows || []).map((row: any) => ({
+    const [
+      arusKasRes,
+      penerimaanRes,
+      pengeluaranRes,
+      anggaranRes,
+      iuranRes,
+      wargaRes,
+      rtsRes,
+      kategoriRes,
+      rekeningRes,
+      usersRes,
+      auditRes,
+    ] = await Promise.all([
+      supabase.from('v_laporan_arus_kas').select('*').order('tanggal', { ascending: false }),
+      supabase.from('penerimaan').select('*').order('tanggal', { ascending: false }),
+      supabase.from('pengeluaran').select('*').order('tanggal_pengajuan', { ascending: false }),
+      supabase.from('anggaran').select('*').order('tahun', { ascending: false }),
+      supabase.from('iuran').select('*').order('periode', { ascending: false }),
+      supabase.from('warga').select('*'),
+      supabase.from('rts').select('*'),
+      supabase.from('kategori_transaksi').select('id,nama_kategori'),
+      supabase.from('rekening').select('*').order('id'),
+      supabase.from('users').select('id,nama,email'),
+      supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(500),
+    ]);
+
+    const kategoriMap = new Map((kategoriRes.data || []).map((row: any) => [Number(row.id), row.nama_kategori]));
+    const rekeningMap = new Map((rekeningRes.data || []).map((row: any) => [Number(row.id), row.nama_rekening]));
+    const userMap = new Map((usersRes.data || []).map((row: any) => [String(row.id), row.nama || row.email]));
+    const rtMap = new Map((rtsRes.data || []).map((row: any) => [Number(row.id), row.nomor_rt]));
+    const wargaMap = new Map((wargaRes.data || []).map((row: any) => [Number(row.id), row]));
+
+    if (!arusKasRes.error) {
+      setArusKas((arusKasRes.data || []).map((row: any) => ({
         tanggal: row.tanggal,
+        periode: String(row.tanggal || '').slice(0, 7),
+        tahun: Number(String(row.tanggal || '').slice(0, 4)) || null,
         tipe: row.tipe,
         referensi: row.referensi,
         kategori: row.kategori || '-',
@@ -942,7 +1215,153 @@ export function useLaporanData() {
         keluar: toNumber(row.keluar),
         status: row.status,
       })));
+    } else {
+      setArusKas([]);
     }
+
+    if (!penerimaanRes.error) {
+      setPenerimaanReport((penerimaanRes.data || []).map((row: any) => ({
+        id: row.id,
+        tanggal: row.tanggal,
+        periode: String(row.tanggal || '').slice(0, 7),
+        tahun: Number(String(row.tanggal || '').slice(0, 4)) || null,
+        nomor: row.nomor,
+        kategori: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
+        rekening: rekeningMap.get(Number(row.rekening_id)) || '-',
+        sumber: row.sumber || '-',
+        nominal: toNumber(row.nominal),
+        metode_bayar: row.metode_bayar || '-',
+        status: row.status,
+        keterangan: row.keterangan || '-',
+      })));
+    } else {
+      setPenerimaanReport([]);
+    }
+
+    if (!pengeluaranRes.error) {
+      setPengeluaranReport((pengeluaranRes.data || []).map((row: any) => ({
+        id: row.id,
+        tanggal: row.tanggal_pengajuan,
+        tanggal_pengajuan: row.tanggal_pengajuan,
+        tanggal_pembayaran: row.tanggal_pembayaran,
+        periode: String(row.tanggal_pembayaran || row.tanggal_pengajuan || '').slice(0, 7),
+        tahun: Number(String(row.tanggal_pembayaran || row.tanggal_pengajuan || '').slice(0, 4)) || null,
+        nomor: row.nomor,
+        kategori: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
+        rekening: rekeningMap.get(Number(row.rekening_id)) || '-',
+        deskripsi: row.deskripsi || '-',
+        nominal: toNumber(row.nominal),
+        status: row.status,
+        pengaju: userMap.get(String(row.pengaju_id)) || 'Pengurus RW/RT',
+        approved_by: userMap.get(String(row.approved_by)) || '-',
+        approved_at: row.approved_at,
+        catatan_approval: row.catatan_approval || '-',
+      })));
+    } else {
+      setPengeluaranReport([]);
+    }
+
+    if (!anggaranRes.error) {
+      const realisasiMap = new Map<string, number>();
+      (pengeluaranRes.data || [])
+        .filter((row: any) => row.status === 'lunas')
+        .forEach((row: any) => {
+          const year = Number(String(row.tanggal_pembayaran || row.tanggal_pengajuan || '').slice(0, 4));
+          const key = `${year}-${Number(row.kategori_id || 0)}`;
+          realisasiMap.set(key, (realisasiMap.get(key) || 0) + toNumber(row.nominal));
+        });
+
+      setAnggaranReport((anggaranRes.data || []).map((row: any) => {
+        const key = `${Number(row.tahun)}-${Number(row.kategori_id || 0)}`;
+        const anggaran = toNumber(row.jumlah_anggaran);
+        const realisasi = realisasiMap.get(key) ?? toNumber(row.realisasi);
+        const sisa = Math.max(anggaran - realisasi, 0);
+        const persentase = anggaran > 0 ? Math.round((realisasi / anggaran) * 100) : 0;
+        return {
+          id: row.id,
+          tahun: Number(row.tahun),
+          kategori: kategoriMap.get(Number(row.kategori_id)) || 'Tanpa Kategori',
+          anggaran,
+          realisasi,
+          sisa,
+          persentase,
+          catatan: row.catatan || '-',
+        };
+      }));
+    } else {
+      setAnggaranReport([]);
+    }
+
+    if (!iuranRes.error) {
+      setIuranReport((iuranRes.data || []).map((row: any) => {
+        const warga = wargaMap.get(Number(row.warga_id)) || {};
+        return {
+          id: row.id,
+          periode: row.periode,
+          tahun: Number(String(row.periode || '').slice(0, 4)) || null,
+          warga_id: row.warga_id,
+          nama: warga.nama || 'Warga',
+          nik: warga.nik || '-',
+          rt: rtMap.get(Number(warga.rt_id)) || '-',
+          tagihan: toNumber(row.jumlah_tagihan),
+          jumlah_bayar: toNumber(row.jumlah_bayar),
+          sisa: Math.max(toNumber(row.jumlah_tagihan) - toNumber(row.jumlah_bayar), 0),
+          status: row.status,
+          tanggal_jatuh_tempo: row.tanggal_jatuh_tempo,
+          tanggal_bayar: row.tanggal_bayar,
+          metode_bayar: row.metode_bayar || '-',
+        };
+      }));
+    } else {
+      setIuranReport([]);
+    }
+
+    if (!rekeningRes.error) {
+      setRekeningReport((rekeningRes.data || []).map((row: any) => ({
+        id: row.id,
+        nama: row.nama_rekening,
+        jenis: row.jenis,
+        bank: row.bank || '-',
+        nomor: row.nomor || '-',
+        saldo_awal: toNumber(row.saldo_awal),
+        saldo: toNumber(row.saldo_saat_ini),
+      })));
+    } else {
+      setRekeningReport([]);
+    }
+
+    if (!auditRes.error) {
+      setAuditReport((auditRes.data || []).map((row: any) => ({
+        id: row.id,
+        waktu: row.created_at,
+        tanggal: String(row.created_at || '').slice(0, 10),
+        periode: String(row.created_at || '').slice(0, 7),
+        tahun: Number(String(row.created_at || '').slice(0, 4)) || null,
+        user: row.user_name || userMap.get(String(row.user_id)) || '-',
+        aksi: row.action,
+        tabel: row.table_name || '-',
+        record_id: row.record_id || '-',
+        keterangan: row.new_data ? JSON.stringify(row.new_data).slice(0, 180) : '-',
+      })));
+    } else {
+      setAuditReport([]);
+    }
+
+    const errors = [
+      arusKasRes,
+      penerimaanRes,
+      pengeluaranRes,
+      anggaranRes,
+      iuranRes,
+      wargaRes,
+      rtsRes,
+      kategoriRes,
+      rekeningRes,
+      usersRes,
+      auditRes,
+    ].filter((res: any) => res.error).map((res: any) => res.error.message);
+
+    setError(errors.length > 0 ? errors.join(' | ') : null);
     setLoadingArusKas(false);
   }, []);
 
@@ -953,6 +1372,12 @@ export function useLaporanData() {
   return {
     ...dashboard,
     arusKas,
+    penerimaanReport,
+    pengeluaranReport,
+    anggaranReport,
+    iuranReport,
+    auditReport,
+    rekeningReport,
     loadingArusKas,
     laporanError: error,
     refreshArusKas,

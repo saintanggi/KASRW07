@@ -4,6 +4,7 @@ import {
   ArrowUpCircle, X, Database, Loader2, RefreshCw, AlertCircle,
 } from 'lucide-react';
 import { makeTransactionNumber, todayISO, usePenerimaan, usePengeluaran } from '../hooks/useSupabaseData';
+import type { Permissions } from '../lib/permissions';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value || 0);
@@ -11,6 +12,7 @@ const formatCurrency = (value: number) => {
 
 interface TransactionsProps {
   type: 'penerimaan' | 'pengeluaran';
+  permissions?: Permissions;
 }
 
 const defaultForm = (type: 'penerimaan' | 'pengeluaran') => ({
@@ -27,7 +29,7 @@ const defaultForm = (type: 'penerimaan' | 'pengeluaran') => ({
   status: type === 'penerimaan' ? 'terverifikasi' : 'menunggu',
 });
 
-const Transactions: React.FC<TransactionsProps> = ({ type }) => {
+const Transactions: React.FC<TransactionsProps> = ({ type, permissions }) => {
   const penerimaan = usePenerimaan();
   const pengeluaran = usePengeluaran();
   const service = type === 'penerimaan' ? penerimaan : pengeluaran;
@@ -42,6 +44,10 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
   const loading = service.loading;
   const title = type === 'penerimaan' ? 'Penerimaan' : 'Pengeluaran';
   const Icon = type === 'penerimaan' ? ArrowDownCircle : ArrowUpCircle;
+  const canCreate = type === 'penerimaan' ? permissions?.canCreatePenerimaan : permissions?.canCreatePengeluaran;
+  const canEdit = type === 'penerimaan' ? permissions?.canEditPenerimaan : permissions?.canEditPengeluaran;
+  const canDelete = type === 'penerimaan' ? permissions?.canDeletePenerimaan : permissions?.canDeletePengeluaran;
+  const formIsReadOnly = Boolean(form.id && !canEdit);
 
   const filteredTransactions = useMemo(() => allTransactions.filter((trx: any) => {
     const haystack = `${trx.nomor || ''} ${trx.kategori || ''} ${trx.sumber || ''} ${trx.status || ''}`.toLowerCase();
@@ -51,6 +57,7 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
   }), [allTransactions, filterStatus, searchTerm]);
 
   const openCreate = () => {
+    if (!canCreate) return;
     setForm(defaultForm(type));
     setFormError(null);
     setShowModal(true);
@@ -83,6 +90,8 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
   const handleSubmit = async () => {
     setFormError(null);
     try {
+      if (form.id && !canEdit) throw new Error('Role Anda tidak boleh mengedit transaksi ini.');
+      if (!form.id && !canCreate) throw new Error('Role Anda tidak boleh menambah transaksi ini.');
       if (!form.kategori_id) throw new Error('Kategori wajib dipilih.');
       if (!form.rekening_id) throw new Error('Rekening wajib dipilih.');
       if (!form.sumber.trim()) throw new Error(type === 'penerimaan' ? 'Sumber wajib diisi.' : 'Deskripsi wajib diisi.');
@@ -100,12 +109,46 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
   };
 
   const handleDelete = async (trx: any) => {
+    if (!canDelete) return;
     const ok = window.confirm(`Hapus transaksi ${trx.nomor}? Saldo rekening akan dihitung ulang otomatis.`);
     if (!ok) return;
     try {
       await service.remove(trx.id);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Gagal menghapus transaksi.');
+    }
+  };
+
+  const handleApprove = async (trx: any) => {
+    if (!permissions?.canApprovePengeluaran) return;
+    const note = window.prompt('Catatan approval (opsional):', '') || '';
+    if (!window.confirm(`Setujui pengeluaran ${trx.nomor}?`)) return;
+    try {
+      await service.approve(trx.id, note);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menyetujui pengeluaran.');
+    }
+  };
+
+  const handleReject = async (trx: any) => {
+    if (!permissions?.canRejectPengeluaran) return;
+    const note = window.prompt('Alasan penolakan:', 'Bukti/catatan belum lengkap') || '';
+    if (!window.confirm(`Tolak pengeluaran ${trx.nomor}?`)) return;
+    try {
+      await service.reject(trx.id, note);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menolak pengeluaran.');
+    }
+  };
+
+  const handlePay = async (trx: any) => {
+    if (!permissions?.canPayPengeluaran) return;
+    const paymentDate = window.prompt('Tanggal pembayaran (YYYY-MM-DD):', todayISO()) || todayISO();
+    if (!window.confirm(`Tandai ${trx.nomor} sebagai lunas/dibayar?`)) return;
+    try {
+      await service.markPaid(trx.id, paymentDate);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menandai lunas.');
     }
   };
 
@@ -162,12 +205,14 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
           <button onClick={exportCsv} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
             <Download className="w-4 h-4" /> Ekspor CSV
           </button>
-          <button
-            onClick={openCreate}
-            className={`px-4 py-2 text-white rounded-lg text-sm font-medium flex items-center gap-2 ${type === 'penerimaan' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
-          >
-            <Plus className="w-4 h-4" /> Tambah {title}
-          </button>
+          {canCreate && (
+            <button
+              onClick={openCreate}
+              className={`px-4 py-2 text-white rounded-lg text-sm font-medium flex items-center gap-2 ${type === 'penerimaan' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
+            >
+              <Plus className="w-4 h-4" /> Tambah {title}
+            </button>
+          )}
         </div>
       </div>
 
@@ -243,24 +288,51 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
                     {trx.tipe === 'penerimaan' ? '+' : '-'}{formatCurrency(trx.nominal)}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium
-                      ${trx.status === 'terverifikasi' || trx.status === 'lunas' ? 'bg-green-100 text-green-700' :
-                        trx.status === 'menunggu' ? 'bg-yellow-100 text-yellow-700' :
-                        trx.status === 'ditolak' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {trx.status}
-                    </span>
+                    <div className="space-y-1">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium
+                        ${trx.status === 'terverifikasi' || trx.status === 'lunas' ? 'bg-green-100 text-green-700' :
+                          trx.status === 'menunggu' ? 'bg-yellow-100 text-yellow-700' :
+                          trx.status === 'ditolak' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {trx.status}
+                      </span>
+                      {type === 'pengeluaran' && trx.catatan_approval && (
+                        <p className="text-[11px] text-gray-500 max-w-[160px] truncate" title={trx.catatan_approval}>{trx.catatan_approval}</p>
+                      )}
+                      {type === 'pengeluaran' && trx.tanggal_pembayaran && (
+                        <p className="text-[11px] text-green-600">Bayar: {trx.tanggal_pembayaran}</p>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => openEdit(trx)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Lihat/Edit">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button onClick={() => openEdit(trx)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Lihat Detail">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button onClick={() => openEdit(trx)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Edit">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(trx)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Hapus">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canEdit && (
+                        <button onClick={() => openEdit(trx)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Edit">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      {type === 'pengeluaran' && trx.status === 'menunggu' && permissions?.canApprovePengeluaran && (
+                        <button onClick={() => handleApprove(trx)} className="px-2 py-1 text-[11px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded" title="Setujui">
+                          Setujui
+                        </button>
+                      )}
+                      {type === 'pengeluaran' && trx.status === 'menunggu' && permissions?.canRejectPengeluaran && (
+                        <button onClick={() => handleReject(trx)} className="px-2 py-1 text-[11px] font-medium text-white bg-red-600 hover:bg-red-700 rounded" title="Tolak">
+                          Tolak
+                        </button>
+                      )}
+                      {type === 'pengeluaran' && trx.status === 'disetujui' && permissions?.canPayPengeluaran && (
+                        <button onClick={() => handlePay(trx)} className="px-2 py-1 text-[11px] font-medium text-white bg-blue-600 hover:bg-blue-700 rounded" title="Tandai Lunas">
+                          Lunas
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button onClick={() => handleDelete(trx)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Hapus">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -278,8 +350,8 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
           <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-800">{form.id ? 'Edit' : 'Tambah'} {title}</h2>
-                <p className="text-xs text-gray-500">Data akan langsung tersimpan ke Supabase.</p>
+                <h2 className="text-lg font-bold text-gray-800">{form.id ? (formIsReadOnly ? 'Detail' : 'Edit') : 'Tambah'} {title}</h2>
+                <p className="text-xs text-gray-500">{formIsReadOnly ? 'Role Anda hanya dapat melihat detail data ini.' : 'Data akan langsung tersimpan ke Supabase.'}</p>
               </div>
               <button onClick={closeModal} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-5 h-5 text-gray-500" />
@@ -367,9 +439,11 @@ const Transactions: React.FC<TransactionsProps> = ({ type }) => {
             </div>
             <div className="p-6 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={closeModal} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Batal</button>
-              <button disabled={service.saving} onClick={handleSubmit} className={`px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-60 ${type === 'penerimaan' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}>
-                {service.saving ? 'Menyimpan...' : `Simpan ${title}`}
-              </button>
+              {!formIsReadOnly && (
+                <button disabled={service.saving} onClick={handleSubmit} className={`px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-60 ${type === 'penerimaan' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}>
+                  {service.saving ? 'Menyimpan...' : `Simpan ${title}`}
+                </button>
+              )}
             </div>
           </div>
         </div>

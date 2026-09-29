@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useSupabaseData';
 import { supabase } from '../lib/supabase';
+import type { Permissions } from '../lib/permissions';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -18,9 +19,10 @@ const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'
 
 interface DashboardProps {
   onNavigate?: (menu: string) => void;
+  permissions?: Permissions;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onNavigate, permissions }) => {
   const { kpi, monthlyData, anggaranData, recentTransactions, pendingApprovals, notifications, loading, error, refresh, periodeLabel, tahunAnggaran } = useDashboardData();
 
   const totalAnggaran = anggaranData.reduce((sum: number, item: any) => sum + item.anggaran, 0);
@@ -28,11 +30,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const persentaseTotal = totalAnggaran > 0 ? Math.round((totalRealisasi / totalAnggaran) * 100) : 0;
 
   const approvePengeluaran = async (id: number) => {
+    if (!permissions?.canApprovePengeluaran) return;
+    const note = window.prompt('Catatan approval (opsional):', '') || '';
     const ok = window.confirm('Setujui pengajuan pengeluaran ini?');
     if (!ok) return;
+    const { data: authData } = await supabase.auth.getUser();
     const { error: updateError } = await supabase
       .from('pengeluaran')
-      .update({ status: 'disetujui', approved_at: new Date().toISOString() })
+      .update({ status: 'disetujui', approved_at: new Date().toISOString(), approved_by: authData.user?.id || null, catatan_approval: note || null })
       .eq('id', id);
     if (updateError) {
       alert(updateError.message);
@@ -77,12 +82,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <p className="text-gray-500 text-sm">RW 07 | Periode: {periodeLabel} | Tahun Anggaran: {tahunAnggaran}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => onNavigate?.('penerimaan')} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
-            + Tambah Penerimaan
-          </button>
-          <button onClick={() => onNavigate?.('pengeluaran')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-            + Tambah Pengeluaran
-          </button>
+          {permissions?.canCreatePenerimaan && (
+            <button onClick={() => onNavigate?.('penerimaan')} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+              + Tambah Penerimaan
+            </button>
+          )}
+          {permissions?.canCreatePengeluaran && (
+            <button onClick={() => onNavigate?.('pengeluaran')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+              + Tambah Pengeluaran
+            </button>
+          )}
         </div>
       </div>
 
@@ -295,9 +304,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   </div>
                   <p className="text-xs text-gray-500 mt-2">{item.deskripsi}</p>
                   <div className="flex gap-2 mt-2">
-                    <button onClick={() => approvePengeluaran(item.id)} className="flex-1 text-xs bg-emerald-600 text-white py-1.5 rounded-md hover:bg-emerald-700 flex items-center justify-center gap-1">
-                      <CheckCircle className="w-3 h-3" /> Setujui
-                    </button>
+                    {permissions?.canApprovePengeluaran && (
+                      <button onClick={() => approvePengeluaran(item.id)} className="flex-1 text-xs bg-emerald-600 text-white py-1.5 rounded-md hover:bg-emerald-700 flex items-center justify-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Setujui
+                      </button>
+                    )}
                     <button onClick={() => onNavigate?.('pengeluaran')} className="flex-1 text-xs bg-gray-200 text-gray-700 py-1.5 rounded-md hover:bg-gray-300 flex items-center justify-center gap-1">
                       <Clock className="w-3 h-3" /> Tinjau
                     </button>

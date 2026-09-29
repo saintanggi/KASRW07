@@ -1,9 +1,15 @@
 import React from 'react';
 import { UserCog, Plus, Edit, Shield, Eye, Lock, Database, Loader2, RefreshCw } from 'lucide-react';
 import { usePengguna } from '../hooks/useSupabaseData';
+import type { Permissions } from '../lib/permissions';
 
-const Pengguna: React.FC = () => {
+interface PenggunaProps {
+  permissions?: Permissions;
+}
+
+const Pengguna: React.FC<PenggunaProps> = ({ permissions }) => {
   const { data: users, loading, error, refresh } = usePengguna();
+  const canManage = Boolean(permissions?.canManageUsers);
   const roleColors: Record<string, string> = {
     'Super Admin': 'bg-red-100 text-red-700',
     'Ketua RW': 'bg-purple-100 text-purple-700',
@@ -39,9 +45,11 @@ const Pengguna: React.FC = () => {
             <p className="text-gray-500 text-sm">Kelola pengguna, peran, dan hak akses sistem</p>
           </div>
         </div>
-        <button className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Tambah Pengguna
-        </button>
+        {canManage && (
+          <button className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Tambah Pengguna
+          </button>
+        )}
       </div>
 
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
@@ -111,15 +119,19 @@ const Pengguna: React.FC = () => {
                       <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Lihat Detail">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Edit">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Hak Akses">
-                        <Shield className="w-4 h-4" />
-                      </button>
-                      <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Nonaktifkan">
-                        <Lock className="w-4 h-4" />
-                      </button>
+                      {canManage && (
+                        <>
+                          <button className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Edit">
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Hak Akses">
+                            <Shield className="w-4 h-4" />
+                          </button>
+                          <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Nonaktifkan">
+                            <Lock className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
