@@ -4,7 +4,7 @@ CARA UPLOAD KE GITHUB DAN DEPLOY - RW 07
 2. Upload semua isi folder KASRW07 ke repo GitHub Anda.
 3. Jika memakai Git command:
    git add .
-   git commit -m "feat: login mode warga dan data kosong rw07"
+   git commit -m "fix: notifikasi dan badge dummy rw07"
    git push origin main
 
 4. Jika database belum dibuat, jalankan di Supabase SQL Editor:
@@ -21,5 +21,11 @@ CARA UPLOAD KE GITHUB DAN DEPLOY - RW 07
    VITE_SUPABASE_ANON_KEY=ANON_KEY_ANDA
 
 8. Redeploy Vercel.
+
+Perbaikan tambahan di ZIP ini:
+- Badge angka 3 di menu Pengeluaran sudah dihapus.
+- Badge notifikasi palsu sudah dihapus.
+- Dropdown notifikasi bisa dibuka, ditutup, dan ditandai dibaca.
+- Tombol Notifikasi di sidebar diarahkan ke Audit Trail.
 
 JANGAN upload node_modules, dist, atau file .env. ZIP ini sudah tidak menyertakan file-file tersebut.

@@ -87,9 +87,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeMenu, setActiveMenu, collapsed,
             >
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-emerald-300' : ''}`} />
               {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
-              {!collapsed && item.id === 'pengeluaran' && (
-                <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">3</span>
-              )}
             </button>
           );
         })}
@@ -97,10 +94,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeMenu, setActiveMenu, collapsed,
 
       {/* Bottom Actions */}
       <div className="p-3 border-t border-emerald-700 space-y-1">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-200 hover:bg-white/10 hover:text-white transition-all">
+        <button onClick={() => setActiveMenu('audit')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-200 hover:bg-white/10 hover:text-white transition-all">
           <Bell className="w-5 h-5" />
-          {!collapsed && <span className="text-sm">Notifikasi</span>}
-          {!collapsed && <span className="ml-auto bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">4</span>}
+          {!collapsed && <span className="text-sm">Notifikasi / Audit</span>}
         </button>
         <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-200 hover:bg-white/10 hover:text-white transition-all">
           <LogOut className="w-5 h-5" />
