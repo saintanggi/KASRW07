@@ -19,6 +19,7 @@ interface SidebarProps {
   activeMenu: string;
   setActiveMenu: (menu: string) => void;
   collapsed: boolean;
+  onLogout?: () => void;
 }
 
 const menuItems = [
@@ -34,7 +35,7 @@ const menuItems = [
   { id: 'audit', label: 'Audit Trail', icon: Settings },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ activeMenu, setActiveMenu, collapsed }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeMenu, setActiveMenu, collapsed, onLogout }) => {
   return (
     <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-gradient-to-b from-emerald-800 to-emerald-900 min-h-screen transition-all duration-300 flex flex-col shadow-xl`}>
       {/* Logo */}
@@ -101,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeMenu, setActiveMenu, collapsed 
           {!collapsed && <span className="text-sm">Notifikasi</span>}
           {!collapsed && <span className="ml-auto bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">4</span>}
         </button>
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-200 hover:bg-white/10 hover:text-white transition-all">
+        <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-200 hover:bg-white/10 hover:text-white transition-all">
           <LogOut className="w-5 h-5" />
           {!collapsed && <span className="text-sm">Keluar</span>}
         </button>

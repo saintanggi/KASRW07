@@ -7,7 +7,7 @@ const formatCurrency = (value: number) => {
 };
 
 const Iuran: React.FC = () => {
-  const { data: wargaData, loading, saving, error, refresh, markPaid, generateIuranForPeriod } = useIuran();
+  const { data: wargaData, rts, loading, saving, error, refresh, markPaid, createWarga, generateIuranForPeriod } = useIuran();
   const [filterRT, setFilterRT] = useState('semua');
   const [filterStatus, setFilterStatus] = useState('semua');
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +18,20 @@ const Iuran: React.FC = () => {
   const totalTagihan = wargaData.reduce((sum: number, w: any) => sum + w.tagihan, 0);
   const totalTerkumpul = wargaData.filter((w: any) => w.status === 'lunas').reduce((sum: number, w: any) => sum + w.jumlah_bayar, 0);
   const rtOptions = Array.from(new Set(wargaData.map((w: any) => w.rt).filter(Boolean))).sort();
+
+  const handleAddWarga = async () => {
+    const nama = window.prompt('Nama warga:');
+    if (!nama) return;
+    const rtLabel = window.prompt(`Pilih RT ID (${rts.map((rt: any) => `${rt.id}=${rt.nomor_rt}`).join(', ')}):`, String(rts[0]?.id || ''));
+    const nik = window.prompt('NIK (boleh dikosongkan):', '') || '';
+    const alamat = window.prompt('Alamat (boleh dikosongkan):', '') || '';
+    try {
+      await createWarga({ nama, rt_id: rtLabel, nik, alamat });
+      alert('Warga berhasil ditambahkan. Setelah itu generate iuran periode yang diinginkan.');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menambah warga.');
+    }
+  };
 
   const handleGenerateIuran = async () => {
     const periode = window.prompt('Masukkan periode iuran (format YYYY-MM):', currentPeriod());
@@ -78,6 +92,9 @@ const Iuran: React.FC = () => {
         <div className="flex gap-2">
           <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
             <Download className="w-4 h-4" /> Ekspor
+          </button>
+          <button onClick={handleAddWarga} disabled={saving} className="px-4 py-2 border border-indigo-300 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-50 flex items-center gap-2 disabled:opacity-60">
+            <Plus className="w-4 h-4" /> Tambah Warga
           </button>
           <button onClick={handleGenerateIuran} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-60">
             <Plus className="w-4 h-4" /> {saving ? 'Memproses...' : 'Generate Iuran'}

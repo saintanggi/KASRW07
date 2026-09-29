@@ -1,22 +1,25 @@
-CARA UPLOAD KE GITHUB DAN DEPLOY
+CARA UPLOAD KE GITHUB DAN DEPLOY - RW 07
 
-1. Extract file ZIP ini.
+1. Extract ZIP ini.
 2. Upload semua isi folder KASRW07 ke repo GitHub Anda.
 3. Jika memakai Git command:
    git add .
-   git commit -m "fix: rombak sistem kas rw07"
+   git commit -m "feat: login mode warga dan data kosong rw07"
    git push origin main
 
-4. Di Supabase SQL Editor, jalankan file:
+4. Jika database belum dibuat, jalankan di Supabase SQL Editor:
    supabase/RESET_DATABASE_RW07.sql
 
-5. Di Vercel, isi Environment Variables:
+5. Untuk mengosongkan data dummy dan mengaktifkan login/RLS, jalankan:
+   supabase/RESET_EMPTY_LOGIN_RW07.sql
+
+6. Buat akun pengurus di Supabase:
+   Authentication > Users > Add user
+
+7. Di Vercel, isi Environment Variables:
    VITE_SUPABASE_URL=https://PROJECT-REF.supabase.co
    VITE_SUPABASE_ANON_KEY=ANON_KEY_ANDA
 
-6. Redeploy Vercel.
-
-Jika masih muncul pesan "Sebagian data gagal dimuat", jalankan ulang baris ini di Supabase SQL Editor:
-   NOTIFY pgrst, 'reload schema';
+8. Redeploy Vercel.
 
 JANGAN upload node_modules, dist, atau file .env. ZIP ini sudah tidak menyertakan file-file tersebut.

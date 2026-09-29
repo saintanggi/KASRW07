@@ -7,8 +7,32 @@ const formatCurrency = (value: number) => {
 };
 
 const KasBank: React.FC = () => {
-  const { data: rekeningData, loading, error, refresh } = useRekening();
+  const { data: rekeningData, loading, saving, error, refresh, create, remove } = useRekening();
   const totalSaldo = rekeningData.reduce((sum: number, r: any) => sum + r.saldo, 0);
+
+  const handleAdd = async () => {
+    const nama = window.prompt('Nama rekening/kas:', 'Kas Tunai RW 07');
+    if (!nama) return;
+    const jenis = window.prompt('Jenis rekening: ketik kas atau bank', 'kas') || 'kas';
+    const bank = jenis === 'bank' ? (window.prompt('Nama bank:', 'Bank Utama') || '') : '';
+    const nomor = jenis === 'bank' ? (window.prompt('Nomor rekening:', '') || '') : '';
+    const saldoText = window.prompt('Saldo awal:', '0') || '0';
+    try {
+      await create({ nama, jenis: jenis === 'bank' ? 'bank' : 'kas', bank, nomor, saldo_awal: Number(saldoText) });
+      alert('Rekening berhasil ditambahkan.');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menambah rekening.');
+    }
+  };
+
+  const handleDelete = async (rek: any) => {
+    if (!window.confirm(`Hapus ${rek.nama}? Pastikan tidak ada transaksi terkait.`)) return;
+    try {
+      await remove(rek.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menghapus rekening.');
+    }
+  };
 
   if (loading) {
     return (
@@ -48,8 +72,8 @@ const KasBank: React.FC = () => {
           <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
             <Download className="w-4 h-4" /> Mutasi
           </button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Catat Mutasi
+          <button onClick={handleAdd} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 disabled:opacity-60">
+            <Plus className="w-4 h-4" /> Tambah Rekening
           </button>
         </div>
       </div>
@@ -81,8 +105,14 @@ const KasBank: React.FC = () => {
             </div>
             {rek.nomor !== '-' && <p className="text-xs text-gray-400 mb-2">No. Rek: {rek.nomor}</p>}
             <p className="text-2xl font-bold text-gray-800">{formatCurrency(rek.saldo)}</p>
+            <button onClick={() => handleDelete(rek)} className="mt-3 text-xs text-red-600 hover:text-red-700">Hapus rekening</button>
           </div>
         ))}
+        {rekeningData.length === 0 && (
+          <div className="md:col-span-3 bg-white rounded-xl p-8 text-center border border-dashed border-gray-200 text-gray-500">
+            Belum ada rekening/kas. Klik <b>Tambah Rekening</b> untuk mulai.
+          </div>
+        )}
       </div>
     </div>
   );

@@ -274,6 +274,7 @@ export function useDashboardData() {
 export function useRekening() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -306,7 +307,50 @@ export function useRekening() {
     refresh();
   }, [refresh]);
 
-  return { data, loading, error, refresh };
+  const create = useCallback(async (input: Record<string, any>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const saldoAwal = toNumber(input.saldo_awal ?? input.saldo);
+      const payload = {
+        nama_rekening: input.nama_rekening || input.nama,
+        jenis: input.jenis || 'kas',
+        nomor: input.nomor || null,
+        bank: input.bank || null,
+        saldo_awal: saldoAwal,
+        saldo_saat_ini: saldoAwal,
+        is_active: true,
+      };
+      if (!payload.nama_rekening) throw new Error('Nama rekening wajib diisi.');
+      const { error: insertError } = await supabase.from('rekening').insert(payload);
+      if (insertError) throw new Error(insertError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  const remove = useCallback(async (id: number) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: deleteError } = await supabase.from('rekening').delete().eq('id', id);
+      if (deleteError) throw new Error(deleteError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
+  return { data, loading, saving, error, refresh, create, remove };
 }
 
 function useTransactionData(type: TransactionType) {
@@ -543,6 +587,7 @@ export function useAnggaran() {
 
 export function useIuran() {
   const [data, setData] = useState<any[]>([]);
+  const [rts, setRts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -564,7 +609,9 @@ export function useIuran() {
     }
 
     const wargaMap = new Map((wargaRes.data || []).map((row: any) => [Number(row.id), row]));
-    const rtMap = new Map((rtsRes.data || []).map((row: any) => [Number(row.id), row.nomor_rt]));
+    const rtRows = rtsRes.data || [];
+    setRts(rtRows);
+    const rtMap = new Map(rtRows.map((row: any) => [Number(row.id), row.nomor_rt]));
 
     const deduped = new Map<string, any>();
     (iuranRes.data || []).forEach((row: any) => {
@@ -631,6 +678,32 @@ export function useIuran() {
     }
   }, [data, refresh]);
 
+  const createWarga = useCallback(async (input: Record<string, any>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        rt_id: input.rt_id ? Number(input.rt_id) : null,
+        nama: input.nama,
+        nik: input.nik || null,
+        alamat: input.alamat || null,
+        no_hp: input.no_hp || null,
+        email: input.email || null,
+        status: 'aktif',
+      };
+      if (!payload.nama) throw new Error('Nama warga wajib diisi.');
+      const { error: insertError } = await supabase.from('warga').insert(payload);
+      if (insertError) throw new Error(insertError.message);
+      await refresh();
+    } catch (err) {
+      const message = normalizeError(err);
+      setError(message);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }, [refresh]);
+
   const generateIuranForPeriod = useCallback(async (periode: string, jumlahTagihan: number) => {
     setSaving(true);
     setError(null);
@@ -672,7 +745,7 @@ export function useIuran() {
     }
   }, [refresh]);
 
-  return { data, loading, saving, error, refresh, markPaid, generateIuranForPeriod };
+  return { data, rts, loading, saving, error, refresh, markPaid, createWarga, generateIuranForPeriod };
 }
 
 export function useAset() {

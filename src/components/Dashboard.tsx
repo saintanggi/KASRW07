@@ -8,6 +8,7 @@ import {
   CheckCircle, Clock, ArrowRight, Loader2, Database,
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useSupabaseData';
+import { supabase } from '../lib/supabase';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -15,12 +16,30 @@ const formatCurrency = (value: number) => {
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onNavigate?: (menu: string) => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { kpi, monthlyData, anggaranData, recentTransactions, pendingApprovals, notifications, loading, error, refresh, periodeLabel, tahunAnggaran } = useDashboardData();
 
   const totalAnggaran = anggaranData.reduce((sum: number, item: any) => sum + item.anggaran, 0);
   const totalRealisasi = anggaranData.reduce((sum: number, item: any) => sum + item.realisasi, 0);
   const persentaseTotal = totalAnggaran > 0 ? Math.round((totalRealisasi / totalAnggaran) * 100) : 0;
+
+  const approvePengeluaran = async (id: number) => {
+    const ok = window.confirm('Setujui pengajuan pengeluaran ini?');
+    if (!ok) return;
+    const { error: updateError } = await supabase
+      .from('pengeluaran')
+      .update({ status: 'disetujui', approved_at: new Date().toISOString() })
+      .eq('id', id);
+    if (updateError) {
+      alert(updateError.message);
+      return;
+    }
+    refresh();
+  };
 
   if (loading) {
     return (
@@ -58,10 +77,10 @@ const Dashboard: React.FC = () => {
           <p className="text-gray-500 text-sm">RW 07 | Periode: {periodeLabel} | Tahun Anggaran: {tahunAnggaran}</p>
         </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+          <button onClick={() => onNavigate?.('penerimaan')} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
             + Tambah Penerimaan
           </button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+          <button onClick={() => onNavigate?.('pengeluaran')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
             + Tambah Pengeluaran
           </button>
         </div>
@@ -212,7 +231,7 @@ const Dashboard: React.FC = () => {
         <div className="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">Transaksi Terbaru</h3>
-            <button className="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+            <button onClick={() => onNavigate?.('penerimaan')} className="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
               Lihat Semua <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -276,10 +295,10 @@ const Dashboard: React.FC = () => {
                   </div>
                   <p className="text-xs text-gray-500 mt-2">{item.deskripsi}</p>
                   <div className="flex gap-2 mt-2">
-                    <button className="flex-1 text-xs bg-emerald-600 text-white py-1.5 rounded-md hover:bg-emerald-700 flex items-center justify-center gap-1">
+                    <button onClick={() => approvePengeluaran(item.id)} className="flex-1 text-xs bg-emerald-600 text-white py-1.5 rounded-md hover:bg-emerald-700 flex items-center justify-center gap-1">
                       <CheckCircle className="w-3 h-3" /> Setujui
                     </button>
-                    <button className="flex-1 text-xs bg-gray-200 text-gray-700 py-1.5 rounded-md hover:bg-gray-300 flex items-center justify-center gap-1">
+                    <button onClick={() => onNavigate?.('pengeluaran')} className="flex-1 text-xs bg-gray-200 text-gray-700 py-1.5 rounded-md hover:bg-gray-300 flex items-center justify-center gap-1">
                       <Clock className="w-3 h-3" /> Tinjau
                     </button>
                   </div>
